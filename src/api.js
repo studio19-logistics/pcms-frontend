@@ -60,3 +60,6 @@ export const deleteInvoiceNote = (noteId) => request(`/api/notes/invoice-note/${
 // Dashboard
 export const getCollections = () => request('/api/dashboard/collections')
 export const getKpis = () => request('/api/dashboard/kpis')
+
+export const snoozeMilestone = (id, days) => request(`/api/milestones/${id}/snooze`, { method: 'PATCH', body: JSON.stringify({ days }) })
+export const unsnoozeMilestone = (id) => request(`/api/milestones/${id}/unsnooze`, { method: 'PATCH' })
