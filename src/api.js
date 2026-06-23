@@ -36,10 +36,26 @@ export const updateProject = (id, data) => request(`/api/projects/${id}`, { meth
 export const reassignProject = (id, ownerId) => request(`/api/projects/${id}/reassign`, { method: 'PATCH', body: JSON.stringify({ owner_id: ownerId }) })
 export const deleteProject = (id) => request(`/api/projects/${id}`, { method: 'DELETE' })
 
-// Milestones
-export const getMilestones = (projectId) => request(`/api/milestones/project/${projectId}`)
-export const saveMilestones = (projectId, milestones) => request(`/api/milestones/project/${projectId}`, { method: 'PUT', body: JSON.stringify({ milestones }) })
+// Invoices
+export const getInvoices = (projectId) => request(`/api/invoices/project/${projectId}`)
+export const getRemainingInvoiceValue = (projectId) => request(`/api/invoices/project/${projectId}/remaining`)
+export const createInvoice = (projectId, data) => request(`/api/invoices/project/${projectId}`, { method: 'POST', body: JSON.stringify(data) })
+export const updateInvoice = (id, data) => request(`/api/invoices/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const deleteInvoice = (id) => request(`/api/invoices/${id}`, { method: 'DELETE' })
+
+// Milestones — scoped to an invoice, not a project directly
+export const getMilestones = (invoiceId) => request(`/api/milestones/invoice/${invoiceId}`)
+export const saveMilestones = (invoiceId, milestones) => request(`/api/milestones/invoice/${invoiceId}`, { method: 'PUT', body: JSON.stringify({ milestones }) })
 export const updateMilestoneStatus = (id, status, actualDate) => request(`/api/milestones/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, actual_payment_date: actualDate }) })
+
+// Notes — project-level and invoice-level
+export const getProjectNotes = (projectId) => request(`/api/notes/project/${projectId}`)
+export const addProjectNote = (projectId, note) => request(`/api/notes/project/${projectId}`, { method: 'POST', body: JSON.stringify({ note }) })
+export const deleteProjectNote = (noteId) => request(`/api/notes/project-note/${noteId}`, { method: 'DELETE' })
+
+export const getInvoiceNotes = (invoiceId) => request(`/api/notes/invoice/${invoiceId}`)
+export const addInvoiceNote = (invoiceId, note) => request(`/api/notes/invoice/${invoiceId}`, { method: 'POST', body: JSON.stringify({ note }) })
+export const deleteInvoiceNote = (noteId) => request(`/api/notes/invoice-note/${noteId}`, { method: 'DELETE' })
 
 // Dashboard
 export const getCollections = () => request('/api/dashboard/collections')
