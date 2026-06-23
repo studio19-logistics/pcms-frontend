@@ -1,9 +1,27 @@
+import { useState } from 'react'
 import { useAuth } from './AuthContext'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
+import Clients from './pages/Clients'
+import Projects from './pages/Projects'
+import ProjectDetail from './pages/ProjectDetail'
+import Collections from './pages/Collections'
+import NavBar from './components/NavBar'
 
 export default function App() {
   const { session, profile, loading } = useAuth()
+  const [page, setPage] = useState('dashboard')
+  const [selectedProjectId, setSelectedProjectId] = useState(null)
+
+  function navigate(targetPage) {
+    setSelectedProjectId(null)
+    setPage(targetPage)
+  }
+
+  function openProjectFrom(targetPage, projectId) {
+    setPage(targetPage)
+    setSelectedProjectId(projectId)
+  }
 
   if (loading) {
     return (
@@ -26,5 +44,20 @@ export default function App() {
     )
   }
 
-  return <Dashboard />
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <NavBar active={page} onNavigate={navigate} />
+      {page === 'dashboard' && <Dashboard />}
+      {page === 'collections' && !selectedProjectId && (
+        <Collections onOpenProject={(id) => openProjectFrom('collections', id)} />
+      )}
+      {page === 'clients' && <Clients />}
+      {page === 'projects' && !selectedProjectId && (
+        <Projects onOpenProject={(id) => openProjectFrom('projects', id)} />
+      )}
+      {selectedProjectId && (page === 'projects' || page === 'collections') && (
+        <ProjectDetail projectId={selectedProjectId} onBack={() => setSelectedProjectId(null)} />
+      )}
+    </div>
+  )
 }

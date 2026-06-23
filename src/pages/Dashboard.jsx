@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react'
-import { useAuth } from '../AuthContext'
 import * as api from '../api'
 
 export default function Dashboard() {
-  const { profile, logout } = useAuth()
   const [kpis, setKpis] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -20,19 +18,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-semibold text-gray-900">PCMS Dashboard</h1>
-          <p className="text-xs text-gray-500">Signed in as {profile?.full_name} ({profile?.role})</p>
-        </div>
-        <button
-          onClick={logout}
-          className="text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded-lg px-3 py-1.5"
-        >
-          Sign out
-        </button>
-      </header>
-
       <main className="max-w-5xl mx-auto px-6 py-8">
         {loading && <p className="text-sm text-gray-500">Loading dashboard...</p>}
         {error && <p className="text-sm text-red-600">Error: {error}</p>}
