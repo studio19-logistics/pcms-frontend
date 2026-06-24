@@ -49,36 +49,111 @@ export default function Collections({ onOpenProject }) {
         ))}
       </div>
 
-      {tab === 'overdue' && <MilestoneList items={data.overdue} emptyText="No overdue payments — nice." showOverdueDays onOpenProject={onOpenProject} />}
-      {tab === 'due_today' && <MilestoneList items={data.due_today} emptyText="Nothing due today." onOpenProject={onOpenProject} />}
-      {tab === 'upcoming' && <MilestoneList items={data.upcoming} emptyText="Nothing due in the next 30 days." onOpenProject={onOpenProject} />}
+      {tab === 'overdue' && <MilestoneList items={data.overdue} emptyText="No overdue payments — nice." showOverdueDays onOpenProject={onOpenProject} onRefresh={load} showSnooze />}
+      {tab === 'due_today' && <MilestoneList items={data.due_today} emptyText="Nothing due today." onOpenProject={onOpenProject} onRefresh={load} showSnooze />}
+      {tab === 'upcoming' && <MilestoneList items={data.upcoming} emptyText="Nothing due in the next 30 days." onOpenProject={onOpenProject} onRefresh={load} />}
       {tab === 'recent' && <RecentList items={data.recently_collected} onOpenProject={onOpenProject} />}
     </div>
   )
 }
 
-function MilestoneList({ items, emptyText, showOverdueDays, onOpenProject }) {
+function MilestoneList({ items, emptyText, showOverdueDays, onOpenProject, onRefresh, showSnooze }) {
+  const [snoozeTarget, setSnoozeTarget] = useState(null) // milestone id
+  const [snoozeDays, setSnoozeDays] = useState(3)
+  const [snoozing, setSnoozing] = useState(false)
+
+  async function handleSnooze(milestoneId) {
+    setSnoozing(true)
+    await api.snoozeMilestone(milestoneId, snoozeDays)
+    setSnoozeTarget(null)
+    setSnoozing(false)
+    onRefresh()
+  }
+
+  async function handleUnsnooze(e, milestoneId) {
+    e.stopPropagation()
+    await api.unsnoozeMilestone(milestoneId)
+    onRefresh()
+  }
+
   if (items.length === 0) {
     return <div className="text-center py-12 border border-dashed border-gray-300 rounded-xl"><p className="text-sm text-gray-500">{emptyText}</p></div>
   }
+
   return (
     <div className="space-y-2">
       {items.map(m => (
-        <div
-          key={m.id}
-          onClick={() => onOpenProject?.(m.project_id)}
-          className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between cursor-pointer hover:border-gray-300 transition"
-        >
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">{m.project_name}</p>
-            <p className="text-xs text-gray-500 mt-0.5">
-              {m.client_name} · {m.stage_name} · Due {formatDate(m.expected_date)}
-              {showOverdueDays && m.days_overdue > 0 && (
-                <span className="text-red-600 font-medium"> · {m.days_overdue}d overdue</span>
+        <div key={m.id} className="bg-white border border-gray-200 rounded-xl p-4 transition hover:border-gray-300">
+          <div
+            className="flex items-center justify-between cursor-pointer"
+            onClick={() => onOpenProject?.(m.project_id)}
+          >
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">{m.project_name}</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {m.client_name} · {m.stage_name} · Due {formatDate(m.expected_date)}
+                {showOverdueDays && m.days_overdue > 0 && (
+                  <span className="text-red-600 font-medium"> · {m.days_overdue}d overdue</span>
+                )}
+                {m.snoozed_until && (
+                  <span className="text-amber-600 font-medium"> · Snoozed until {formatDate(m.snoozed_until)}</span>
+                )}
+              </p>
+            </div>
+            <div className="flex items-center gap-3 flex-shrink-0 ml-4">
+              <p className="text-sm font-semibold text-gray-900">{formatCurrency(m.amount)}</p>
+              {showSnooze && (
+                <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+                  {m.snoozed_until ? (
+                    <button
+                      onClick={(e) => handleUnsnooze(e, m.id)}
+                      className="text-xs px-2 py-1 rounded-lg border border-amber-300 text-amber-700 hover:bg-amber-50 transition"
+                    >
+                      Unsnooze
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setSnoozeTarget(snoozeTarget === m.id ? null : m.id)}
+                      className="text-xs px-2 py-1 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition"
+                    >
+                      Snooze
+                    </button>
+                  )}
+                </div>
               )}
-            </p>
+            </div>
           </div>
-          <p className="text-sm font-semibold text-gray-900 flex-shrink-0 ml-4">{formatCurrency(m.amount)}</p>
+
+          {/* Snooze picker */}
+          {showSnooze && snoozeTarget === m.id && (
+            <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2" onClick={e => e.stopPropagation()}>
+              <p className="text-xs text-gray-500">Snooze for</p>
+              {[1, 3, 7, 14].map(d => (
+                <button
+                  key={d}
+                  onClick={() => setSnoozeDays(d)}
+                  className={`text-xs px-2 py-1 rounded-lg border transition ${
+                    snoozeDays === d ? 'border-brand-500 text-brand-600 bg-brand-50' : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                  }`}
+                >
+                  {d}d
+                </button>
+              ))}
+              <button
+                onClick={() => handleSnooze(m.id)}
+                disabled={snoozing}
+                className="text-xs px-3 py-1 rounded-lg bg-gray-900 text-white hover:bg-gray-700 transition disabled:opacity-50"
+              >
+                {snoozing ? 'Saving...' : 'Confirm'}
+              </button>
+              <button
+                onClick={() => setSnoozeTarget(null)}
+                className="text-xs text-gray-400 hover:text-gray-600"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
       ))}
     </div>
