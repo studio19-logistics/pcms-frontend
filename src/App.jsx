@@ -6,7 +6,7 @@ import Clients from './pages/Clients'
 import Projects from './pages/Projects'
 import ProjectDetail from './pages/ProjectDetail'
 import Collections from './pages/Collections'
-import NavBar from './components/NavBar'
+import NavBar from './Components/NavBar'
 
 export default function App() {
   const { session, profile, loading } = useAuth()
