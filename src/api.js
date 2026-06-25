@@ -63,3 +63,5 @@ export const getKpis = () => request('/api/dashboard/kpis')
 
 export const snoozeMilestone = (id, days) => request(`/api/milestones/${id}/snooze`, { method: 'PATCH', body: JSON.stringify({ days }) })
 export const unsnoozeMilestone = (id) => request(`/api/milestones/${id}/unsnooze`, { method: 'PATCH' })
+
+export const getActivity = () => request('/api/dashboard/activity?limit=50')
