@@ -47,7 +47,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-50">
       <NavBar active={page} onNavigate={navigate} />
-      {page === 'dashboard' && <Dashboard />}
+      {page === 'dashboard' && <Dashboard onNavigateToCollections={() => navigate('collections')} />}
       {page === 'collections' && !selectedProjectId && (
         <Collections onOpenProject={(id) => openProjectFrom('collections', id)} />
       )}

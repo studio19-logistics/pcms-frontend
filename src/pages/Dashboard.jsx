@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import * as api from '../api'
 
-export default function Dashboard() {
+export default function Dashboard({ onNavigateToCollections }) {
   const [kpis, setKpis] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -17,25 +17,61 @@ export default function Dashboard() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-surface bg-texture">
       <main className="max-w-5xl mx-auto px-6 py-8">
-        {loading && <p className="text-sm text-gray-500">Loading dashboard...</p>}
-        {error && <p className="text-sm text-red-600">Error: {error}</p>}
+        <h2 className="font-serif text-3xl text-ink mb-6">Dashboard</h2>
 
-        {kpis && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <KpiCard label="Total Projects" value={kpis.total_projects} />
-            <KpiCard label="Active Projects" value={kpis.active_projects} />
-            <KpiCard label="Total Project Value" value={formatCurrency(kpis.total_project_value)} />
-            <KpiCard label="Amount Received" value={formatCurrency(kpis.amount_received)} accent="green" />
-            <KpiCard label="Outstanding" value={formatCurrency(kpis.outstanding_amount)} accent="amber" />
-            <KpiCard label="Overdue" value={formatCurrency(kpis.overdue_amount)} accent="red" />
+        {loading && <p className="text-sm text-ink-dim">Loading dashboard...</p>}
+        {error && <p className="text-sm text-red-400">Error: {error}</p>}
+
+        {kpis && (kpis.payments_due_today > 0 || kpis.payments_overdue > 0 || kpis.payments_due_this_week > 0) && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+            {kpis.payments_overdue > 0 && (
+              <AlertCard
+                dot="bg-red-400"
+                label={`${kpis.payments_overdue} Payment${kpis.payments_overdue === 1 ? '' : 's'} Overdue`}
+                onClick={onNavigateToCollections}
+              />
+            )}
+            {kpis.payments_due_today > 0 && (
+              <AlertCard
+                dot="bg-amber-400"
+                label={`${kpis.payments_due_today} Due Today`}
+                onClick={onNavigateToCollections}
+              />
+            )}
+            {kpis.payments_due_this_week > 0 && (
+              <AlertCard
+                dot="bg-yellow-300"
+                label={`${kpis.payments_due_this_week} Due This Week`}
+                onClick={onNavigateToCollections}
+              />
+            )}
           </div>
         )}
 
+        {kpis && (
+          <>
+            {/* Hero stat — mirrors the reference's big "Income $1,209" card */}
+            <div className="bg-surface-card rounded-card border border-surface-border p-5 mb-4">
+              <p className="text-xs text-ink-dim mb-1">Total Project Value</p>
+              <p className="text-4xl font-serif text-ink">{formatCurrency(kpis.total_project_value)}</p>
+              <p className="text-xs text-ink-faint mt-1">across {kpis.total_projects} project{kpis.total_projects === 1 ? '' : 's'}</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <StatCard label="Active Projects" value={kpis.active_projects} />
+              <StatCard label="Total Projects" value={kpis.total_projects} />
+              <StatCard label="Amount Received" value={formatCurrency(kpis.amount_received)} accent="text-emerald-300" />
+              <StatCard label="Outstanding" value={formatCurrency(kpis.outstanding_amount)} accent="text-amber-300" />
+              <StatCard label="Overdue" value={formatCurrency(kpis.overdue_amount)} accent="text-red-300" full />
+            </div>
+          </>
+        )}
+
         {kpis && kpis.total_projects === 0 && (
-          <div className="mt-8 text-center py-12 border border-dashed border-gray-300 rounded-xl">
-            <p className="text-sm text-gray-500">No projects yet. Client and project creation coming next.</p>
+          <div className="mt-8 text-center py-12 border border-dashed border-surface-border rounded-card">
+            <p className="text-sm text-ink-dim">No projects yet. Client and project creation coming next.</p>
           </div>
         )}
       </main>
@@ -43,17 +79,23 @@ export default function Dashboard() {
   )
 }
 
-function KpiCard({ label, value, accent }) {
-  const accentClass = {
-    green: 'text-emerald-600',
-    amber: 'text-amber-600',
-    red: 'text-red-600',
-  }[accent] || 'text-gray-900'
-
+function AlertCard({ dot, label, onClick }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4">
-      <p className="text-xs text-gray-500 mb-1">{label}</p>
-      <p className={`text-xl font-semibold ${accentClass}`}>{value}</p>
+    <button
+      onClick={onClick}
+      className="flex items-center gap-2.5 bg-surface-card border border-surface-border rounded-card px-4 py-3 text-sm font-medium text-left text-ink hover:bg-surface-raised transition"
+    >
+      <span className={`w-2 h-2 rounded-full ${dot} flex-shrink-0`} />
+      <span>{label}</span>
+    </button>
+  )
+}
+
+function StatCard({ label, value, accent, full }) {
+  return (
+    <div className={`bg-surface-card border border-surface-border rounded-card p-4 ${full ? 'col-span-2' : ''}`}>
+      <p className="text-xs text-ink-dim mb-1">{label}</p>
+      <p className={`text-2xl font-serif ${accent || 'text-ink'}`}>{value}</p>
     </div>
   )
 }

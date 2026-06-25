@@ -5,10 +5,10 @@ import * as api from '../api'
 const STATUS_OPTIONS = ['active', 'completed', 'on_hold', 'cancelled']
 
 const STATUS_STYLE = {
-  active: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  completed: 'bg-blue-50 text-blue-700 border-blue-200',
-  on_hold: 'bg-amber-50 text-amber-700 border-amber-200',
-  cancelled: 'bg-gray-100 text-gray-500 border-gray-200',
+  active: 'bg-emerald-400/10 text-emerald-300 border-emerald-400/30',
+  completed: 'bg-blue-400/10 text-blue-300 border-blue-400/30',
+  on_hold: 'bg-amber-400/10 text-amber-300 border-amber-400/30',
+  cancelled: 'bg-surface-raised text-ink-faint border-surface-border',
 }
 
 export default function Projects({ onOpenProject }) {
@@ -49,16 +49,17 @@ export default function Projects({ onOpenProject }) {
     : projects.filter(p => p.status === statusFilter)
 
   return (
+    <div className="min-h-screen bg-surface bg-texture">
     <div className="max-w-5xl mx-auto px-6 py-8">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Projects</h2>
-          <p className="text-xs text-gray-500 mt-0.5">{filtered.length} project{filtered.length === 1 ? '' : 's'}</p>
+          <h2 className="font-serif text-2xl text-ink">Projects</h2>
+          <p className="text-xs text-ink-dim mt-0.5">{filtered.length} project{filtered.length === 1 ? '' : 's'}</p>
         </div>
         <button
           onClick={() => setShowCreate(true)}
           disabled={clients.length === 0}
-          className="bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition disabled:opacity-50"
+          className="bg-brand-500 hover:bg-brand-600 text-surface text-sm font-medium px-4 py-2 rounded-lg transition disabled:opacity-50"
           title={clients.length === 0 ? 'Add a client first' : ''}
         >
           + New Project
@@ -79,10 +80,10 @@ export default function Projects({ onOpenProject }) {
       {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
       {loading ? (
-        <p className="text-sm text-gray-500">Loading projects...</p>
+        <p className="text-sm text-ink-dim">Loading projects...</p>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 border border-dashed border-gray-300 rounded-xl">
-          <p className="text-sm text-gray-500">No projects {statusFilter !== 'all' ? `with status "${formatStatus(statusFilter)}"` : 'yet'}.</p>
+        <div className="text-center py-16 border border-dashed border-surface-border rounded-card">
+          <p className="text-sm text-ink-dim">No projects {statusFilter !== 'all' ? `with status "${formatStatus(statusFilter)}"` : 'yet'}.</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -108,6 +109,7 @@ export default function Projects({ onOpenProject }) {
         />
       )}
     </div>
+    </div>
   )
 }
 
@@ -116,7 +118,7 @@ function FilterPill({ label, active, onClick }) {
     <button
       onClick={onClick}
       className={`text-xs font-medium px-3 py-1.5 rounded-full border transition ${
-        active ? 'bg-brand-500 text-white border-brand-500' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+        active ? 'bg-brand-500 text-surface border-brand-500' : 'bg-surface-card text-ink-dim border-surface-border hover:border-brand-500'
       }`}
     >
       {label}
@@ -138,26 +140,26 @@ function ProjectRow({ project, currentUserId, isAdmin, onClick, onUpdated, onDel
   return (
     <div
       onClick={onClick}
-      className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between cursor-pointer hover:border-gray-300 transition"
+      className="bg-surface-card border border-surface-border rounded-card p-4 flex items-center justify-between cursor-pointer hover:border-brand-500/50 transition"
     >
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <p className="text-sm font-medium text-gray-900 truncate">{project.project_name}</p>
+          <p className="text-sm font-medium text-ink truncate">{project.project_name}</p>
           <span className={`text-xs px-2 py-0.5 rounded-full border ${STATUS_STYLE[project.status]}`}>
             {formatStatus(project.status)}
           </span>
         </div>
-        <p className="text-xs text-gray-500 mt-0.5">
+        <p className="text-xs text-ink-dim mt-0.5">
           {project.clients?.company_name || 'Unknown client'} · {project.user_profiles?.full_name || 'Unknown owner'}
         </p>
       </div>
       <div className="flex items-center gap-3 flex-shrink-0 ml-4">
-        <p className="text-sm font-medium text-gray-900">{formatCurrency(project.project_value)}</p>
+        <p className="text-sm font-medium text-ink">{formatCurrency(project.project_value)}</p>
         {canEdit && (
           <>
             <button
               onClick={(e) => { e.stopPropagation(); setShowEdit(true) }}
-              className="text-xs text-gray-500 hover:text-gray-900 border border-gray-300 rounded-lg px-2.5 py-1"
+              className="text-xs text-ink-dim hover:text-ink border border-surface-border rounded-xl px-2.5 py-1"
             >
               Edit
             </button>
@@ -223,9 +225,9 @@ function ProjectModal({ project, clients = [], onClose, onCreated, onUpdated }) 
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4 overflow-y-auto py-8">
-      <div className="bg-white rounded-xl p-6 w-full max-w-lg shadow-lg">
-        <h3 className="text-base font-semibold text-gray-900 mb-4">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4 overflow-y-auto py-8">
+      <div className="bg-surface-card border border-surface-border rounded-card p-6 w-full max-w-lg shadow-xl">
+        <h3 className="font-serif text-xl text-ink mb-4">
           {isEdit ? 'Edit Project' : 'New Project'}
         </h3>
 
@@ -234,11 +236,11 @@ function ProjectModal({ project, clients = [], onClose, onCreated, onUpdated }) 
 
           {!isEdit && (
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Client</label>
+              <label className="block text-xs font-medium text-ink-dim mb-1">Client</label>
               <select
                 value={form.client_id}
                 onChange={e => setForm({ ...form, client_id: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="w-full px-3 py-2 bg-surface border border-surface-border rounded-xl text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-500"
               >
                 <option value="">Select a client...</option>
                 {clients.map(c => <option key={c.id} value={c.id}>{c.company_name}</option>)}
@@ -262,11 +264,11 @@ function ProjectModal({ project, clients = [], onClose, onCreated, onUpdated }) 
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Status</label>
+            <label className="block text-xs font-medium text-ink-dim mb-1">Status</label>
             <select
               value={form.status}
               onChange={e => setForm({ ...form, status: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full px-3 py-2 bg-surface border border-surface-border rounded-xl text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-500"
             >
               {STATUS_OPTIONS.map(s => <option key={s} value={s}>{formatStatus(s)}</option>)}
             </select>
@@ -276,13 +278,13 @@ function ProjectModal({ project, clients = [], onClose, onCreated, onUpdated }) 
         {error && <p className="text-sm text-red-600 mt-3">{error}</p>}
 
         <div className="flex gap-2 mt-5">
-          <button onClick={onClose} className="flex-1 text-sm text-gray-600 border border-gray-300 rounded-lg py-2">
+          <button onClick={onClose} className="flex-1 text-sm text-ink-dim border border-surface-border rounded-xl py-2">
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="flex-1 text-sm text-white bg-brand-500 hover:bg-brand-600 rounded-lg py-2 disabled:opacity-50"
+            className="flex-1 text-sm text-surface bg-brand-500 hover:bg-brand-600 rounded-lg py-2 disabled:opacity-50"
           >
             {loading ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Project'}
           </button>
@@ -295,15 +297,15 @@ function ProjectModal({ project, clients = [], onClose, onCreated, onUpdated }) 
 function Field({ label, value, onChange, optional, type = 'text', placeholder }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-gray-600 mb-1">
-        {label} {optional && <span className="text-gray-400">(optional)</span>}
+      <label className="block text-xs font-medium text-ink-dim mb-1">
+        {label} {optional && <span className="text-ink-faint">(optional)</span>}
       </label>
       <input
         type={type}
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+        className="w-full px-3 py-2 bg-surface border border-surface-border rounded-xl text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
       />
     </div>
   )

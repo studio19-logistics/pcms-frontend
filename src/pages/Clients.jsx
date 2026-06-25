@@ -34,15 +34,16 @@ export default function Clients() {
   }
 
   return (
+    <div className="min-h-screen bg-surface bg-texture">
     <div className="max-w-5xl mx-auto px-6 py-8">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Clients</h2>
-          <p className="text-xs text-gray-500 mt-0.5">{clients.length} client{clients.length === 1 ? '' : 's'}</p>
+          <h2 className="font-serif text-2xl text-ink">Clients</h2>
+          <p className="text-xs text-ink-dim mt-0.5">{clients.length} client{clients.length === 1 ? '' : 's'}</p>
         </div>
         <button
           onClick={() => setShowCreate(true)}
-          className="bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition"
+          className="bg-brand-500 hover:bg-brand-600 text-surface text-sm font-medium px-4 py-2 rounded-lg transition"
         >
           + Add Client
         </button>
@@ -51,10 +52,10 @@ export default function Clients() {
       {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
       {loading ? (
-        <p className="text-sm text-gray-500">Loading clients...</p>
+        <p className="text-sm text-ink-dim">Loading clients...</p>
       ) : clients.length === 0 ? (
-        <div className="text-center py-16 border border-dashed border-gray-300 rounded-xl">
-          <p className="text-sm text-gray-500">No clients yet.</p>
+        <div className="text-center py-16 border border-dashed border-surface-border rounded-card">
+          <p className="text-sm text-ink-dim">No clients yet.</p>
           <button
             onClick={() => setShowCreate(true)}
             className="text-sm text-brand-600 font-medium mt-2 hover:underline"
@@ -87,6 +88,7 @@ export default function Clients() {
         />
       )}
     </div>
+    </div>
   )
 }
 
@@ -108,14 +110,14 @@ function ClientCard({ client, currentUserId, isAdmin, expanded, onToggle, onUpda
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+    <div className="bg-surface-card border border-surface-border rounded-card overflow-hidden">
       <div
         className="p-4 cursor-pointer flex items-center justify-between"
         onClick={onToggle}
       >
         <div>
-          <p className="text-sm font-medium text-gray-900">{client.company_name}</p>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <p className="text-sm font-medium text-ink">{client.company_name}</p>
+          <p className="text-xs text-ink-dim mt-0.5">
             {primaryContact ? primaryContact.poc_name : 'No contact added yet'}
           </p>
         </div>
@@ -124,7 +126,7 @@ function ClientCard({ client, currentUserId, isAdmin, expanded, onToggle, onUpda
             <>
               <button
                 onClick={(e) => { e.stopPropagation(); setShowEdit(true) }}
-                className="text-xs text-gray-500 hover:text-gray-900 border border-gray-300 rounded-lg px-2.5 py-1"
+                className="text-xs text-ink-dim hover:text-ink border border-surface-border rounded-xl px-2.5 py-1"
               >
                 Edit
               </button>
@@ -138,14 +140,14 @@ function ClientCard({ client, currentUserId, isAdmin, expanded, onToggle, onUpda
               )}
             </>
           )}
-          <span className="text-gray-400 text-xs">{expanded ? '▲' : '▼'}</span>
+          <span className="text-ink-faint text-xs">{expanded ? '▲' : '▼'}</span>
         </div>
       </div>
 
       {expanded && (
-        <div className="border-t border-gray-100 px-4 py-3 bg-gray-50">
+        <div className="border-t border-surface-border px-4 py-3 bg-surface/40">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-medium text-gray-700">Contacts</p>
+            <p className="text-xs font-medium text-ink-dim">Contacts</p>
             <button
               onClick={() => setShowAddContact(true)}
               className="text-xs text-brand-600 hover:underline"
@@ -155,22 +157,22 @@ function ClientCard({ client, currentUserId, isAdmin, expanded, onToggle, onUpda
           </div>
 
           {(!client.client_contacts || client.client_contacts.length === 0) ? (
-            <p className="text-xs text-gray-400">No contacts added</p>
+            <p className="text-xs text-ink-faint">No contacts added</p>
           ) : (
             <div className="space-y-2">
               {client.client_contacts.map(contact => (
-                <div key={contact.id} className="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-3 py-2">
+                <div key={contact.id} className="flex items-center justify-between bg-surface border border-surface-border rounded-xl px-3 py-2">
                   <div>
-                    <p className="text-xs font-medium text-gray-900">
+                    <p className="text-xs font-medium text-ink">
                       {contact.poc_name} {contact.is_primary && <span className="text-brand-600">(Primary)</span>}
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-ink-dim">
                       {contact.phone_number || contact.email || 'No contact info'}
                     </p>
                   </div>
                   <button
                     onClick={() => handleDeleteContact(contact.id)}
-                    className="text-xs text-gray-400 hover:text-red-600"
+                    className="text-xs text-ink-faint hover:text-red-600"
                   >
                     Remove
                   </button>
@@ -225,9 +227,9 @@ function ClientModal({ client, onClose, onCreated, onUpdated }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
-      <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-lg">
-        <h3 className="text-base font-semibold text-gray-900 mb-4">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+      <div className="bg-surface-card border border-surface-border rounded-card p-6 w-full max-w-md shadow-xl">
+        <h3 className="font-serif text-xl text-ink mb-4">
           {isEdit ? 'Edit Client' : 'Add Client'}
         </h3>
 
@@ -238,13 +240,13 @@ function ClientModal({ client, onClose, onCreated, onUpdated }) {
         {error && <p className="text-sm text-red-600 mt-3">{error}</p>}
 
         <div className="flex gap-2 mt-5">
-          <button onClick={onClose} className="flex-1 text-sm text-gray-600 border border-gray-300 rounded-lg py-2">
+          <button onClick={onClose} className="flex-1 text-sm text-ink-dim border border-surface-border rounded-xl py-2">
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="flex-1 text-sm text-white bg-brand-500 hover:bg-brand-600 rounded-lg py-2 disabled:opacity-50"
+            className="flex-1 text-sm text-surface bg-brand-500 hover:bg-brand-600 rounded-lg py-2 disabled:opacity-50"
           >
             {loading ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Client'}
           </button>
@@ -276,15 +278,15 @@ function ContactModal({ clientId, onClose, onAdded }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
-      <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-lg">
-        <h3 className="text-base font-semibold text-gray-900 mb-4">Add Contact</h3>
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+      <div className="bg-surface-card border border-surface-border rounded-card p-6 w-full max-w-md shadow-xl">
+        <h3 className="font-serif text-xl text-ink mb-4">Add Contact</h3>
 
         <div className="space-y-3">
           <Field label="Contact Name" value={form.poc_name} onChange={v => setForm({ ...form, poc_name: v })} />
           <Field label="Phone Number" value={form.phone_number} onChange={v => setForm({ ...form, phone_number: v })} optional />
           <Field label="Email" value={form.email} onChange={v => setForm({ ...form, email: v })} optional type="email" />
-          <label className="flex items-center gap-2 text-xs text-gray-600">
+          <label className="flex items-center gap-2 text-xs text-ink-dim">
             <input
               type="checkbox"
               checked={form.is_primary}
@@ -297,13 +299,13 @@ function ContactModal({ clientId, onClose, onAdded }) {
         {error && <p className="text-sm text-red-600 mt-3">{error}</p>}
 
         <div className="flex gap-2 mt-5">
-          <button onClick={onClose} className="flex-1 text-sm text-gray-600 border border-gray-300 rounded-lg py-2">
+          <button onClick={onClose} className="flex-1 text-sm text-ink-dim border border-surface-border rounded-xl py-2">
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="flex-1 text-sm text-white bg-brand-500 hover:bg-brand-600 rounded-lg py-2 disabled:opacity-50"
+            className="flex-1 text-sm text-surface bg-brand-500 hover:bg-brand-600 rounded-lg py-2 disabled:opacity-50"
           >
             {loading ? 'Adding...' : 'Add Contact'}
           </button>
@@ -316,15 +318,15 @@ function ContactModal({ clientId, onClose, onAdded }) {
 function Field({ label, value, onChange, optional, type = 'text', placeholder }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-gray-600 mb-1">
-        {label} {optional && <span className="text-gray-400">(optional)</span>}
+      <label className="block text-xs font-medium text-ink-dim mb-1">
+        {label} {optional && <span className="text-ink-faint">(optional)</span>}
       </label>
       <input
         type={type}
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+        className="w-full px-3 py-2 border border-surface-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
       />
     </div>
   )

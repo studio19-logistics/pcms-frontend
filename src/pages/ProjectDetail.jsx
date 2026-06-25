@@ -15,9 +15,9 @@ const STAGE_TYPES = [
 ]
 
 const STATUS_STYLE = {
-  pending: 'bg-gray-100 text-gray-600 border-gray-200',
-  paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  overdue: 'bg-red-50 text-red-700 border-red-200',
+  pending: 'bg-surface-raised text-ink-dim border-surface-border',
+  paid: 'bg-emerald-400/10 text-emerald-300 border-emerald-400/30',
+  overdue: 'bg-red-400/10 text-red-300 border-red-400/30',
 }
 
 export default function ProjectDetail({ projectId, onBack }) {
@@ -59,8 +59,8 @@ export default function ProjectDetail({ projectId, onBack }) {
     setInvoices(prev => prev.map(i => i.id === invoiceId ? { ...i, payment_milestones: milestones } : i))
   }
 
-  if (loading) return <div className="max-w-3xl mx-auto px-6 py-8"><p className="text-sm text-gray-500">Loading...</p></div>
-  if (error && !project) return <div className="max-w-3xl mx-auto px-6 py-8"><p className="text-sm text-red-600">{error}</p></div>
+  if (loading) return <div className="min-h-screen bg-surface bg-texture"><div className="max-w-3xl mx-auto px-6 py-8"><p className="text-sm text-ink-dim">Loading...</p></div></div>
+  if (error && !project) return <div className="min-h-screen bg-surface bg-texture"><div className="max-w-3xl mx-auto px-6 py-8"><p className="text-sm text-red-400">{error}</p></div></div>
 
   // Overall progress: total collected across every invoice's milestones,
   // divided by the project's total order value (not per-invoice bars —
@@ -72,54 +72,55 @@ export default function ProjectDetail({ projectId, onBack }) {
   const totalInvoiced = invoices.reduce((sum, inv) => sum + Number(inv.invoice_value), 0)
 
   return (
+    <div className="min-h-screen bg-surface bg-texture">
     <div className="max-w-3xl mx-auto px-6 py-8">
-      <button onClick={onBack} className="text-xs text-gray-500 hover:text-gray-900 mb-4">← Back to Projects</button>
+      <button onClick={onBack} className="text-xs text-ink-dim hover:text-ink mb-4">← Back to Projects</button>
 
       {/* PO header */}
       <div className="mb-5">
         <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold text-gray-900">{project.project_name}</h2>
+          <h2 className="font-serif text-2xl text-ink">{project.project_name}</h2>
           {project.po_number && (
-            <span className="text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200 rounded-full px-2.5 py-0.5">
+            <span className="text-xs font-medium text-ink-dim bg-surface-raised border border-surface-border rounded-full px-2.5 py-0.5">
               PO {project.po_number}
             </span>
           )}
         </div>
-        <p className="text-xs text-gray-500 mt-0.5">
+        <p className="text-xs text-ink-dim mt-0.5">
           {project.clients?.company_name}
           {project.po_date && ` · PO Date ${formatDate(project.po_date)}`}
         </p>
       </div>
 
       {/* Overall progress bar */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 mb-6">
+      <div className="bg-surface-card border border-surface-border rounded-card p-4 mb-6">
         <div className="flex items-center justify-between mb-2">
-          <p className="text-xs font-medium text-gray-700">Overall Collection Progress</p>
-          <p className="text-xs text-gray-500">{formatCurrency(totalCollected)} / {formatCurrency(project.project_value)}</p>
+          <p className="text-xs font-medium text-ink-dim">Overall Collection Progress</p>
+          <p className="text-xs text-ink-dim">{formatCurrency(totalCollected)} / {formatCurrency(project.project_value)}</p>
         </div>
-        <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+        <div className="w-full h-2 bg-surface-raised rounded-full overflow-hidden">
           <div
             className="h-full bg-emerald-500 rounded-full transition-all"
             style={{ width: `${progressPct}%` }}
           />
         </div>
         <div className="flex items-center justify-between mt-2">
-          <p className="text-xs text-gray-400">{progressPct.toFixed(1)}% collected</p>
-          <p className="text-xs text-gray-400">{formatCurrency(totalInvoiced)} invoiced so far</p>
+          <p className="text-xs text-ink-faint">{progressPct.toFixed(1)}% collected</p>
+          <p className="text-xs text-ink-faint">{formatCurrency(totalInvoiced)} invoiced so far</p>
         </div>
       </div>
 
       {/* Invoices */}
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-medium text-gray-900">Invoices</h3>
+        <h3 className="text-sm font-medium text-ink">Invoices</h3>
         <button onClick={() => setShowAddInvoice(true)} className="text-xs text-brand-600 hover:underline">
           + Add Invoice
         </button>
       </div>
 
       {invoices.length === 0 ? (
-        <div className="text-center py-10 border border-dashed border-gray-300 rounded-xl mb-6">
-          <p className="text-sm text-gray-500">No invoices yet — this PO hasn't shipped anything.</p>
+        <div className="text-center py-10 border border-dashed border-surface-border rounded-card mb-6">
+          <p className="text-sm text-ink-dim">No invoices yet — this PO hasn't shipped anything.</p>
           <button onClick={() => setShowAddInvoice(true)} className="text-xs text-brand-600 hover:underline mt-1">
             Add the first invoice
           </button>
@@ -148,6 +149,7 @@ export default function ProjectDetail({ projectId, onBack }) {
           onCreated={handleInvoiceCreated}
         />
       )}
+    </div>
     </div>
   )
 }
@@ -181,33 +183,33 @@ function InvoiceCard({ invoice, onUpdated, onDeleted }) {
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+    <div className="bg-surface-card border border-surface-border rounded-card overflow-hidden">
       <div
         className="p-4 cursor-pointer flex items-center justify-between"
         onClick={() => setExpanded(v => !v)}
       >
         <div>
-          <p className="text-sm font-medium text-gray-900">Invoice {invoice.invoice_number}</p>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <p className="text-sm font-medium text-ink">Invoice {invoice.invoice_number}</p>
+          <p className="text-xs text-ink-dim mt-0.5">
             {invoice.invoice_date && `${formatDate(invoice.invoice_date)} · `}
             {formatCurrency(collected)} / {formatCurrency(invoice.invoice_value)} collected
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={(e) => { e.stopPropagation(); setShowEdit(true) }} className="text-xs text-gray-500 hover:text-gray-900 border border-gray-300 rounded-lg px-2.5 py-1">
+          <button onClick={(e) => { e.stopPropagation(); setShowEdit(true) }} className="text-xs text-ink-dim hover:text-ink border border-surface-border rounded-xl px-2.5 py-1">
             Edit
           </button>
           <button onClick={handleDelete} className="text-xs text-red-600 hover:text-red-700 border border-red-200 rounded-lg px-2.5 py-1">
             Delete
           </button>
-          <span className="text-gray-400 text-xs">{expanded ? '▲' : '▼'}</span>
+          <span className="text-ink-faint text-xs">{expanded ? '▲' : '▼'}</span>
         </div>
       </div>
 
       {expanded && (
-        <div className="border-t border-gray-100 px-4 py-3 bg-gray-50">
+        <div className="border-t border-surface-border px-4 py-3 bg-surface/40">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-medium text-gray-700">Payment Milestones</p>
+            <p className="text-xs font-medium text-ink-dim">Payment Milestones</p>
             {!editingMilestones && (
               <button onClick={() => setEditingMilestones(true)} className="text-xs text-brand-600 hover:underline">
                 Edit structure
@@ -249,23 +251,23 @@ function MilestoneList({ milestones, onTogglePaid }) {
   return (
     <div className="space-y-2">
       {sorted.map(m => (
-        <div key={m.id} className="bg-white border border-gray-200 rounded-lg p-3 flex items-center justify-between">
+        <div key={m.id} className="bg-surface border border-surface-border rounded-xl p-3 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <p className="text-sm font-medium text-gray-900">{m.stage_name}</p>
+              <p className="text-sm font-medium text-ink">{m.stage_name}</p>
               <span className={`text-xs px-2 py-0.5 rounded-full border ${STATUS_STYLE[m.status]}`}>{m.status}</span>
             </div>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-xs text-ink-dim mt-0.5">
               {m.percentage}% · Due {formatDate(m.expected_date)}
               {m.actual_payment_date && ` · Paid ${formatDate(m.actual_payment_date)}`}
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <p className="text-sm font-medium text-gray-900">{formatCurrency(m.amount)}</p>
+            <p className="text-sm font-medium text-ink">{formatCurrency(m.amount)}</p>
             <button
               onClick={() => onTogglePaid(m.id, m.status)}
               className={`text-xs px-3 py-1.5 rounded-lg border transition ${
-                m.status === 'paid' ? 'border-gray-300 text-gray-600 hover:bg-gray-50' : 'bg-emerald-500 text-white border-emerald-500 hover:bg-emerald-600'
+                m.status === 'paid' ? 'border-surface-border text-ink-dim hover:bg-surface-raised' : 'bg-emerald-500 text-surface border-emerald-500 hover:bg-emerald-600'
               }`}
             >
               {m.status === 'paid' ? 'Mark Pending' : 'Mark Paid'}
@@ -337,14 +339,14 @@ function MilestoneBuilder({ invoiceId, invoiceValue, initialMilestones, onSaved,
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-3">
+    <div className="bg-surface border border-surface-border rounded-xl p-3">
       <div className="space-y-2">
         {rows.map((row, i) => (
           <div key={i} className="flex gap-2 items-start">
             <select
               value={row.stage_type}
               onChange={e => updateRow(i, 'stage_type', e.target.value)}
-              className={`px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand-500 ${row.stage_type === 'custom' ? 'w-32' : 'flex-1'}`}
+              className={`px-2 py-1.5 border border-surface-border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-brand-500 ${row.stage_type === 'custom' ? 'w-32' : 'flex-1'}`}
             >
               {STAGE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
@@ -354,7 +356,7 @@ function MilestoneBuilder({ invoiceId, invoiceValue, initialMilestones, onSaved,
                 placeholder="Stage name"
                 value={row.stage_name}
                 onChange={e => updateRow(i, 'stage_name', e.target.value)}
-                className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="flex-1 px-2 py-1.5 border border-surface-border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
             )}
             <input
@@ -362,31 +364,31 @@ function MilestoneBuilder({ invoiceId, invoiceValue, initialMilestones, onSaved,
               placeholder="%"
               value={row.percentage}
               onChange={e => updateRow(i, 'percentage', e.target.value)}
-              className="w-16 px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-16 px-2 py-1.5 border border-surface-border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
             <input
               type="date"
               value={row.expected_date}
               onChange={e => updateRow(i, 'expected_date', e.target.value)}
-              className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand-500 w-32"
+              className="px-2 py-1.5 border border-surface-border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-brand-500 w-32"
             />
-            <div className="text-xs text-gray-500 w-20 pt-2 text-right">
+            <div className="text-xs text-ink-dim w-20 pt-2 text-right">
               {row.percentage ? formatCurrency(invoiceValue * Number(row.percentage) / 100) : '—'}
             </div>
-            <button onClick={() => removeRow(i)} disabled={rows.length === 1} className="text-gray-400 hover:text-red-600 px-1 pt-1.5 disabled:opacity-30">✕</button>
+            <button onClick={() => removeRow(i)} disabled={rows.length === 1} className="text-ink-faint hover:text-red-400 px-1 pt-1.5 disabled:opacity-30">✕</button>
           </div>
         ))}
       </div>
 
       <button onClick={addRow} className="text-xs text-brand-600 hover:underline mt-2">+ Add stage</button>
 
-      <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+      <div className="flex items-center justify-between mt-3 pt-3 border-t border-surface-border">
         <p className={`text-xs font-medium ${isValid ? 'text-emerald-600' : 'text-amber-600'}`}>
           Total: {total.toFixed(2)}% {isValid ? '✓' : '(needs to be 100%)'}
         </p>
         <div className="flex gap-2">
-          {onCancel && <button onClick={onCancel} className="text-xs text-gray-600 border border-gray-300 rounded-lg px-3 py-1.5">Cancel</button>}
-          <button onClick={handleSave} disabled={saving || !isValid} className="text-xs text-white bg-brand-500 hover:bg-brand-600 rounded-lg px-3 py-1.5 disabled:opacity-50">
+          {onCancel && <button onClick={onCancel} className="text-xs text-ink-dim border border-surface-border rounded-xl px-3 py-1.5">Cancel</button>}
+          <button onClick={handleSave} disabled={saving || !isValid} className="text-xs text-surface bg-brand-500 hover:bg-brand-600 rounded-lg px-3 py-1.5 disabled:opacity-50">
             {saving ? 'Saving...' : 'Save Structure'}
           </button>
         </div>
@@ -440,11 +442,11 @@ function InvoiceModal({ projectId, invoice, onClose, onCreated, onUpdated }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
-      <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-lg">
-        <h3 className="text-base font-semibold text-gray-900 mb-1">{isEdit ? 'Edit Invoice' : 'Add Invoice'}</h3>
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+      <div className="bg-surface-card border border-surface-border rounded-card p-6 w-full max-w-sm shadow-xl">
+        <h3 className="font-serif text-xl text-ink mb-1">{isEdit ? 'Edit Invoice' : 'Add Invoice'}</h3>
         {remaining !== null && (
-          <p className={`text-xs mb-4 ${overBudget ? 'text-red-600 font-medium' : 'text-gray-500'}`}>
+          <p className={`text-xs mb-4 ${overBudget ? 'text-red-400 font-medium' : 'text-ink-dim'}`}>
             {formatCurrency(remaining)} left to invoice on this PO
           </p>
         )}
@@ -458,8 +460,8 @@ function InvoiceModal({ projectId, invoice, onClose, onCreated, onUpdated }) {
         )}
         {error && <p className="text-sm text-red-600 mt-3">{error}</p>}
         <div className="flex gap-2 mt-5">
-          <button onClick={onClose} className="flex-1 text-sm text-gray-600 border border-gray-300 rounded-lg py-2">Cancel</button>
-          <button onClick={handleSubmit} disabled={loading || overBudget} className="flex-1 text-sm text-white bg-brand-500 hover:bg-brand-600 rounded-lg py-2 disabled:opacity-50">
+          <button onClick={onClose} className="flex-1 text-sm text-ink-dim border border-surface-border rounded-xl py-2">Cancel</button>
+          <button onClick={handleSubmit} disabled={loading || overBudget} className="flex-1 text-sm text-surface bg-brand-500 hover:bg-brand-600 rounded-lg py-2 disabled:opacity-50">
             {loading ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Invoice'}
           </button>
         </div>
@@ -497,33 +499,33 @@ function ProjectNotesSection({ projectId, expanded, onToggle }) {
   }
 
   return (
-    <div className="mt-8 pt-4 border-t border-gray-200">
-      <button onClick={onToggle} className="text-xs text-gray-500 hover:text-gray-900 flex items-center gap-1">
+    <div className="mt-8 pt-4 border-t border-surface-border">
+      <button onClick={onToggle} className="text-xs text-ink-dim hover:text-ink flex items-center gap-1">
         📝 Project Notes {notes.length > 0 && !expanded && `(${notes.length})`} {expanded ? '▲' : '▼'}
       </button>
       {expanded && (
-        <div className="mt-3 bg-white border border-gray-200 rounded-xl p-4">
+        <div className="mt-3 bg-surface-card border border-surface-border rounded-card p-4">
           <div className="flex gap-2 mb-3">
             <input
               type="text"
               value={text}
               onChange={e => setText(e.target.value)}
               placeholder="Add a note about this project..."
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="flex-1 px-3 py-2 border border-surface-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
               onKeyDown={e => e.key === 'Enter' && handleAdd()}
             />
-            <button onClick={handleAdd} disabled={posting} className="text-xs text-white bg-brand-500 hover:bg-brand-600 rounded-lg px-3 disabled:opacity-50">
+            <button onClick={handleAdd} disabled={posting} className="text-xs text-surface bg-brand-500 hover:bg-brand-600 rounded-lg px-3 disabled:opacity-50">
               Add
             </button>
           </div>
           {notes.length === 0 ? (
-            <p className="text-xs text-gray-400">No notes yet.</p>
+            <p className="text-xs text-ink-faint">No notes yet.</p>
           ) : (
             <div className="space-y-2">
               {notes.map(n => (
-                <div key={n.id} className="text-xs border-l-2 border-gray-200 pl-3">
-                  <p className="text-gray-700">{n.note}</p>
-                  <p className="text-gray-400 mt-0.5">{n.user_profiles?.full_name} · {formatDateTime(n.created_at)}</p>
+                <div key={n.id} className="text-xs border-l-2 border-surface-border pl-3">
+                  <p className="text-ink">{n.note}</p>
+                  <p className="text-ink-faint mt-0.5">{n.user_profiles?.full_name} · {formatDateTime(n.created_at)}</p>
                 </div>
               ))}
             </div>
@@ -561,33 +563,33 @@ function InvoiceNotesSection({ invoiceId, expanded, onToggle }) {
   }
 
   return (
-    <div className="mt-3 pt-3 border-t border-gray-200">
-      <button onClick={onToggle} className="text-xs text-gray-500 hover:text-gray-900 flex items-center gap-1">
+    <div className="mt-3 pt-3 border-t border-surface-border">
+      <button onClick={onToggle} className="text-xs text-ink-dim hover:text-ink flex items-center gap-1">
         📝 Notes {notes.length > 0 && !expanded && `(${notes.length})`} {expanded ? '▲' : '▼'}
       </button>
       {expanded && (
-        <div className="mt-2 bg-white border border-gray-200 rounded-lg p-3">
+        <div className="mt-2 bg-surface border border-surface-border rounded-xl p-3">
           <div className="flex gap-2 mb-2">
             <input
               type="text"
               value={text}
               onChange={e => setText(e.target.value)}
               placeholder="Add a note about this invoice..."
-              className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="flex-1 px-2 py-1.5 border border-surface-border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-brand-500"
               onKeyDown={e => e.key === 'Enter' && handleAdd()}
             />
-            <button onClick={handleAdd} disabled={posting} className="text-xs text-white bg-brand-500 hover:bg-brand-600 rounded-lg px-3 disabled:opacity-50">
+            <button onClick={handleAdd} disabled={posting} className="text-xs text-surface bg-brand-500 hover:bg-brand-600 rounded-lg px-3 disabled:opacity-50">
               Add
             </button>
           </div>
           {notes.length === 0 ? (
-            <p className="text-xs text-gray-400">No notes yet.</p>
+            <p className="text-xs text-ink-faint">No notes yet.</p>
           ) : (
             <div className="space-y-1.5">
               {notes.map(n => (
-                <div key={n.id} className="text-xs border-l-2 border-gray-200 pl-2">
-                  <p className="text-gray-700">{n.note}</p>
-                  <p className="text-gray-400 mt-0.5">{n.user_profiles?.full_name} · {formatDateTime(n.created_at)}</p>
+                <div key={n.id} className="text-xs border-l-2 border-surface-border pl-2">
+                  <p className="text-ink">{n.note}</p>
+                  <p className="text-ink-faint mt-0.5">{n.user_profiles?.full_name} · {formatDateTime(n.created_at)}</p>
                 </div>
               ))}
             </div>
@@ -601,15 +603,15 @@ function InvoiceNotesSection({ invoiceId, expanded, onToggle }) {
 function Field({ label, value, onChange, optional, type = 'text', placeholder }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-gray-600 mb-1">
-        {label} {optional && <span className="text-gray-400">(optional)</span>}
+      <label className="block text-xs font-medium text-ink-dim mb-1">
+        {label} {optional && <span className="text-ink-faint">(optional)</span>}
       </label>
       <input
         type={type}
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+        className="w-full px-3 py-2 border border-surface-border rounded-xl text-sm bg-surface text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
       />
     </div>
   )
