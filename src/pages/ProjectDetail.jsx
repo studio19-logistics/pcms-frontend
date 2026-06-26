@@ -241,7 +241,7 @@ function MilestoneAlerts({ invoices, onMilestoneUpdated }) {
                   type="number"
                   min="1"
                   max="30"
-                  placeholder="Custom"
+                  placeholder=""
                   value={customDays}
                   onChange={e => setCustomDays(e.target.value)}
                   className="w-16 text-xs px-2 py-1 rounded-lg border border-surface-border text-ink bg-surface focus:outline-none focus:ring-1 focus:ring-brand-500"
