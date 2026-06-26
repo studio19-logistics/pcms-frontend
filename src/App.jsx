@@ -1,6 +1,4 @@
-import { useState } from 'react'
-import { useAuth } from './AuthContext'
-import Login from './pages/Login'
+import { useState, useEffect } from 'react'
 import Dashboard from './pages/Dashboard'
 import Clients from './pages/Clients'
 import Projects from './pages/Projects'
@@ -9,13 +7,23 @@ import Collections from './pages/Collections'
 import NavBar from './Components/NavBar'
 
 export default function App() {
-  const { session, profile, loading } = useAuth()
   const [page, setPage] = useState('dashboard')
   const [selectedProjectId, setSelectedProjectId] = useState(null)
+
+  // Deep link handler — ?project=<id> opens that project directly
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const projectId = params.get('project')
+    if (projectId) {
+      setPage('projects')
+      setSelectedProjectId(projectId)
+    }
+  }, [])
 
   function navigate(targetPage) {
     setSelectedProjectId(null)
     setPage(targetPage)
+    window.history.replaceState({}, '', window.location.pathname)
   }
 
   function openProjectFrom(targetPage, projectId) {
@@ -23,29 +31,8 @@ export default function App() {
     setSelectedProjectId(projectId)
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-sm text-gray-500">Loading...</p>
-      </div>
-    )
-  }
-
-  if (!session) return <Login />
-
-  if (!profile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 text-center">
-        <p className="text-sm text-gray-500">
-          Signed in, but no profile found for this account.<br />
-          Ask an admin to set up your user_profiles row.
-        </p>
-      </div>
-    )
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-surface bg-texture">
       <NavBar active={page} onNavigate={navigate} />
       {page === 'dashboard' && <Dashboard onNavigateToCollections={() => navigate('collections')} />}
       {page === 'collections' && !selectedProjectId && (

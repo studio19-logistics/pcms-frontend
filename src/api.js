@@ -65,3 +65,5 @@ export const snoozeMilestone = (id, days) => request(`/api/milestones/${id}/snoo
 export const unsnoozeMilestone = (id) => request(`/api/milestones/${id}/unsnooze`, { method: 'PATCH' })
 
 export const getActivity = () => request('/api/dashboard/activity?limit=50')
+
+export const getTeamMembers = () => request('/api/projects/team-members')
