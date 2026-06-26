@@ -219,7 +219,7 @@ function MilestoneList({
                   type="number"
                   min="1"
                   max="30"
-                  placeholder="Custom"
+                  placeholder=""
                   onChange={e => setSnoozeDays(Number(e.target.value))}
                   className="w-16 text-xs px-2 py-1 rounded-lg border border-gray-200 text-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
                  />
