@@ -62,100 +62,207 @@ export default function ProjectDetail({ projectId, onBack }) {
   if (loading) return <div className="min-h-screen bg-surface bg-texture"><div className="max-w-3xl mx-auto px-6 py-8"><p className="text-sm text-ink-dim">Loading...</p></div></div>
   if (error && !project) return <div className="min-h-screen bg-surface bg-texture"><div className="max-w-3xl mx-auto px-6 py-8"><p className="text-sm text-red-400">{error}</p></div></div>
 
-  // Overall progress: total collected across every invoice's milestones,
-  // divided by the project's total order value (not per-invoice bars —
-  // one number for "how much of this PO have we actually collected").
   const allMilestones = invoices.flatMap(i => i.payment_milestones || [])
   const totalCollected = allMilestones.filter(m => m.status === 'paid').reduce((sum, m) => sum + Number(m.amount), 0)
   const progressPct = project.project_value > 0 ? Math.min(100, (totalCollected / project.project_value) * 100) : 0
-
   const totalInvoiced = invoices.reduce((sum, inv) => sum + Number(inv.invoice_value), 0)
 
   return (
     <div className="min-h-screen bg-surface bg-texture">
-    <div className="max-w-3xl mx-auto px-6 py-8">
-      <button onClick={onBack} className="text-xs text-ink-dim hover:text-ink mb-4">← Back to Projects</button>
+      <div className="max-w-3xl mx-auto px-6 py-8">
+        <button onClick={onBack} className="text-xs text-ink-dim hover:text-ink mb-4">← Back to Projects</button>
 
-      {/* PO header */}
-      <div className="mb-5">
-        <div className="flex items-center gap-2">
-          <h2 className="font-serif text-2xl text-ink">{project.project_name}</h2>
-          {project.po_number && (
-            <span className="text-xs font-medium text-ink-dim bg-surface-raised border border-surface-border rounded-full px-2.5 py-0.5">
-              PO {project.po_number}
-            </span>
-          )}
+        <div className="mb-5">
+          <div className="flex items-center gap-2">
+            <h2 className="font-serif text-2xl text-ink">{project.project_name}</h2>
+            {project.po_number && (
+              <span className="text-xs font-medium text-ink-dim bg-surface-raised border border-surface-border rounded-full px-2.5 py-0.5">
+                PO {project.po_number}
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-ink-dim mt-0.5">
+            {project.clients?.company_name}
+            {project.po_date && ` · PO Date ${formatDate(project.po_date)}`}
+          </p>
         </div>
-        <p className="text-xs text-ink-dim mt-0.5">
-          {project.clients?.company_name}
-          {project.po_date && ` · PO Date ${formatDate(project.po_date)}`}
-        </p>
-      </div>
 
-      {/* Overall progress bar */}
-      <div className="bg-surface-card border border-surface-border rounded-card p-4 mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-xs font-medium text-ink-dim">Overall Collection Progress</p>
-          <p className="text-xs text-ink-dim">{formatCurrency(totalCollected)} / {formatCurrency(project.project_value)}</p>
+        <div className="bg-surface-card border border-surface-border rounded-card p-4 mb-6">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-medium text-ink-dim">Overall Collection Progress</p>
+            <p className="text-xs text-ink-dim">{formatCurrency(totalCollected)} / {formatCurrency(project.project_value)}</p>
+          </div>
+          <div className="w-full h-2 bg-surface-raised rounded-full overflow-hidden">
+            <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${progressPct}%` }} />
+          </div>
+          <div className="flex items-center justify-between mt-2">
+            <p className="text-xs text-ink-faint">{progressPct.toFixed(1)}% collected</p>
+            <p className="text-xs text-ink-faint">{formatCurrency(totalInvoiced)} invoiced so far</p>
+          </div>
         </div>
-        <div className="w-full h-2 bg-surface-raised rounded-full overflow-hidden">
-          <div
-            className="h-full bg-emerald-500 rounded-full transition-all"
-            style={{ width: `${progressPct}%` }}
+
+        <MilestoneAlerts invoices={invoices} onMilestoneUpdated={load} />
+
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-medium text-ink">Invoices</h3>
+          <button onClick={() => setShowAddInvoice(true)} className="text-xs text-brand-600 hover:underline">+ Add Invoice</button>
+        </div>
+
+        {invoices.length === 0 ? (
+          <div className="text-center py-10 border border-dashed border-surface-border rounded-card mb-6">
+            <p className="text-sm text-ink-dim">No invoices yet — this PO hasn't shipped anything.</p>
+            <button onClick={() => setShowAddInvoice(true)} className="text-xs text-brand-600 hover:underline mt-1">Add the first invoice</button>
+          </div>
+        ) : (
+          <div className="space-y-3 mb-6">
+            {invoices.map(invoice => (
+              <InvoiceCard
+                key={invoice.id}
+                invoice={invoice}
+                onUpdated={handleInvoiceUpdated}
+                onDeleted={handleInvoiceDeleted}
+                onMilestonesChanged={(ms) => handleMilestonesChanged(invoice.id, ms)}
+              />
+            ))}
+          </div>
+        )}
+
+        <ProjectNotesSection projectId={projectId} expanded={showProjectNotes} onToggle={() => setShowProjectNotes(v => !v)} />
+
+        {showAddInvoice && (
+          <InvoiceModal
+            projectId={projectId}
+            onClose={() => setShowAddInvoice(false)}
+            onCreated={handleInvoiceCreated}
           />
-        </div>
-        <div className="flex items-center justify-between mt-2">
-          <p className="text-xs text-ink-faint">{progressPct.toFixed(1)}% collected</p>
-          <p className="text-xs text-ink-faint">{formatCurrency(totalInvoiced)} invoiced so far</p>
-        </div>
+        )}
       </div>
-
-      {/* Milestone alerts */}
-      <MilestoneAlerts invoices={invoices} onMilestoneUpdated={load} />
-
-      {/* Invoices */}
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-medium text-ink">Invoices</h3>
-        <button onClick={() => setShowAddInvoice(true)} className="text-xs text-brand-600 hover:underline">
-          + Add Invoice
-        </button>
-      </div>
-
-      {invoices.length === 0 ? (
-        <div className="text-center py-10 border border-dashed border-surface-border rounded-card mb-6">
-          <p className="text-sm text-ink-dim">No invoices yet — this PO hasn't shipped anything.</p>
-          <button onClick={() => setShowAddInvoice(true)} className="text-xs text-brand-600 hover:underline mt-1">
-            Add the first invoice
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-3 mb-6">
-          {invoices.map(invoice => (
-            <InvoiceCard
-              key={invoice.id}
-              invoice={invoice}
-              onUpdated={handleInvoiceUpdated}
-              onDeleted={handleInvoiceDeleted}
-              onMilestonesChanged={(ms) => handleMilestonesChanged(invoice.id, ms)}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Project-level notes */}
-      <ProjectNotesSection projectId={projectId} expanded={showProjectNotes} onToggle={() => setShowProjectNotes(v => !v)} />
-
-      {showAddInvoice && (
-        <InvoiceModal
-          projectId={projectId}
-          onClose={() => setShowAddInvoice(false)}
-          onCreated={handleInvoiceCreated}
-        />
-      )}
-    </div>
     </div>
   )
 }
+
+function MilestoneAlerts({ invoices, onMilestoneUpdated }) {
+  const today = new Date().toISOString().slice(0, 10)
+  const [snoozeTarget, setSnoozeTarget] = useState(null)
+  const [snoozeDays, setSnoozeDays] = useState(3)
+  const [customDays, setCustomDays] = useState('')
+  const [snoozing, setSnoozing] = useState(false)
+
+  const alertMilestones = invoices.flatMap(inv =>
+    (inv.payment_milestones || [])
+      .filter(m => m.status !== 'paid')
+      .filter(m => {
+        const diff = Math.round((new Date(m.expected_date) - new Date(today)) / 86400000)
+        return diff <= 3
+      })
+      .map(m => ({ ...m, invoice_number: inv.invoice_number }))
+  ).sort((a, b) => new Date(a.expected_date) - new Date(b.expected_date))
+
+  if (alertMilestones.length === 0) return null
+
+  async function handleSnooze(milestoneId) {
+    const days = customDays ? Number(customDays) : snoozeDays
+    if (!days || days < 1) return
+    setSnoozing(true)
+    await api.snoozeMilestone(milestoneId, days)
+    setSnoozeTarget(null)
+    setCustomDays('')
+    setSnoozing(false)
+    onMilestoneUpdated()
+  }
+
+  async function handleUnsnooze(milestoneId) {
+    await api.unsnoozeMilestone(milestoneId)
+    onMilestoneUpdated()
+  }
+
+  function getDiffLabel(dateStr) {
+    const diff = Math.round((new Date(dateStr) - new Date(today)) / 86400000)
+    if (diff < 0) return { label: `${Math.abs(diff)}d overdue`, color: 'text-red-400' }
+    if (diff === 0) return { label: 'Due today', color: 'text-amber-400' }
+    return { label: `Due in ${diff}d`, color: 'text-amber-300' }
+  }
+
+  return (
+    <div className="mb-6 space-y-2">
+      <p className="text-xs font-medium text-ink-dim mb-2">⚠ Payment Alerts</p>
+      {alertMilestones.map(m => {
+        const { label, color } = getDiffLabel(m.expected_date)
+        return (
+          <div key={m.id} className="bg-surface-card border border-surface-border rounded-card p-3">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-ink">
+                  {m.stage_name}
+                  <span className="text-ink-faint font-normal"> · {m.invoice_number}</span>
+                </p>
+                <p className="text-xs mt-0.5">
+                  <span className={`font-medium ${color}`}>{label}</span>
+                  <span className="text-ink-faint"> · {formatCurrency(m.amount)}</span>
+                  {m.snoozed_until && (
+                    <span className="text-amber-500"> · Snoozed until {formatDate(m.snoozed_until)}</span>
+                  )}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                {m.snoozed_until ? (
+                  <button
+                    onClick={() => handleUnsnooze(m.id)}
+                    className="text-xs px-2 py-1 rounded-lg border border-amber-400/30 text-amber-400 hover:bg-amber-400/10 transition"
+                  >
+                    Unsnooze
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setSnoozeTarget(snoozeTarget === m.id ? null : m.id)}
+                    className="text-xs px-2 py-1 rounded-lg border border-surface-border text-ink-dim hover:text-ink transition"
+                  >
+                    Snooze
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {snoozeTarget === m.id && (
+              <div className="mt-2 pt-2 border-t border-surface-border flex items-center gap-2 flex-wrap">
+                <p className="text-xs text-ink-faint">Snooze for</p>
+                {[1, 3, 5, 7].map(d => (
+                  <button
+                    key={d}
+                    onClick={() => { setSnoozeDays(d); setCustomDays('') }}
+                    className={`text-xs px-2 py-1 rounded-lg border transition ${
+                      snoozeDays === d && !customDays ? 'border-brand-500 text-brand-500' : 'border-surface-border text-ink-dim hover:border-ink-dim'
+                    }`}
+                  >
+                    {d}d
+                  </button>
+                ))}
+                <input
+                  type="number"
+                  min="1"
+                  max="30"
+                  placeholder="Custom"
+                  value={customDays}
+                  onChange={e => setCustomDays(e.target.value)}
+                  className="w-16 text-xs px-2 py-1 rounded-lg border border-surface-border text-ink bg-surface focus:outline-none focus:ring-1 focus:ring-brand-500"
+                />
+                <button
+                  onClick={() => handleSnooze(m.id)}
+                  disabled={snoozing}
+                  className="text-xs px-3 py-1 rounded-lg bg-ink text-surface hover:bg-ink/80 transition disabled:opacity-50"
+                >
+                  {snoozing ? 'Saving...' : 'Confirm'}
+                </button>
+                <button onClick={() => setSnoozeTarget(null)} className="text-xs text-ink-faint hover:text-ink">Cancel</button>
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function InvoiceCard({ invoice, onUpdated, onDeleted }) {
   const [expanded, setExpanded] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
@@ -186,10 +293,7 @@ function InvoiceCard({ invoice, onUpdated, onDeleted }) {
 
   return (
     <div className="bg-surface-card border border-surface-border rounded-card overflow-hidden">
-      <div
-        className="p-4 cursor-pointer flex items-center justify-between"
-        onClick={() => setExpanded(v => !v)}
-      >
+      <div className="p-4 cursor-pointer flex items-center justify-between" onClick={() => setExpanded(v => !v)}>
         <div>
           <p className="text-sm font-medium text-ink">Invoice {invoice.invoice_number}</p>
           <p className="text-xs text-ink-dim mt-0.5">
@@ -198,12 +302,8 @@ function InvoiceCard({ invoice, onUpdated, onDeleted }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={(e) => { e.stopPropagation(); setShowEdit(true) }} className="text-xs text-ink-dim hover:text-ink border border-surface-border rounded-xl px-2.5 py-1">
-            Edit
-          </button>
-          <button onClick={handleDelete} className="text-xs text-red-600 hover:text-red-700 border border-red-200 rounded-lg px-2.5 py-1">
-            Delete
-          </button>
+          <button onClick={(e) => { e.stopPropagation(); setShowEdit(true) }} className="text-xs text-ink-dim hover:text-ink border border-surface-border rounded-xl px-2.5 py-1">Edit</button>
+          <button onClick={handleDelete} className="text-xs text-red-600 hover:text-red-700 border border-red-200 rounded-lg px-2.5 py-1">Delete</button>
           <span className="text-ink-faint text-xs">{expanded ? '▲' : '▼'}</span>
         </div>
       </div>
@@ -213,12 +313,9 @@ function InvoiceCard({ invoice, onUpdated, onDeleted }) {
           <div className="flex items-center justify-between mb-2">
             <p className="text-xs font-medium text-ink-dim">Payment Milestones</p>
             {!editingMilestones && (
-              <button onClick={() => setEditingMilestones(true)} className="text-xs text-brand-600 hover:underline">
-                Edit structure
-              </button>
+              <button onClick={() => setEditingMilestones(true)} className="text-xs text-brand-600 hover:underline">Edit structure</button>
             )}
           </div>
-
           {editingMilestones ? (
             <MilestoneBuilder
               invoiceId={invoice.id}
@@ -230,7 +327,6 @@ function InvoiceCard({ invoice, onUpdated, onDeleted }) {
           ) : (
             <MilestoneList milestones={milestones} onTogglePaid={handleTogglePaid} />
           )}
-
           <InvoiceNotesSection invoiceId={invoice.id} expanded={showNotes} onToggle={() => setShowNotes(v => !v)} />
         </div>
       )}
@@ -313,15 +409,9 @@ function MilestoneBuilder({ invoiceId, invoiceValue, initialMilestones, onSaved,
   }
 
   async function handleSave() {
-    if (rows.some(r => !r.percentage || !r.expected_date)) {
-      return setError('Every stage needs a percentage and a due date')
-    }
-    if (rows.some(r => r.stage_type === 'custom' && !r.stage_name?.trim())) {
-      return setError('Custom stages need a name')
-    }
-    if (!isValid) {
-      return setError(`Percentages must total 100% of this invoice's value. Currently: ${total.toFixed(2)}%`)
-    }
+    if (rows.some(r => !r.percentage || !r.expected_date)) return setError('Every stage needs a percentage and a due date')
+    if (rows.some(r => r.stage_type === 'custom' && !r.stage_name?.trim())) return setError('Custom stages need a name')
+    if (!isValid) return setError(`Percentages must total 100%. Currently: ${total.toFixed(2)}%`)
     setSaving(true)
     setError('')
     const payload = rows.map(r => ({
@@ -331,11 +421,7 @@ function MilestoneBuilder({ invoiceId, invoiceValue, initialMilestones, onSaved,
       expected_date: r.expected_date,
     }))
     const result = await api.saveMilestones(invoiceId, payload)
-    if (result.error) {
-      setError(result.error)
-      setSaving(false)
-      return
-    }
+    if (result.error) { setError(result.error); setSaving(false); return }
     onSaved(result)
     setSaving(false)
   }
@@ -353,27 +439,10 @@ function MilestoneBuilder({ invoiceId, invoiceValue, initialMilestones, onSaved,
               {STAGE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
             {row.stage_type === 'custom' && (
-              <input
-                type="text"
-                placeholder="Stage name"
-                value={row.stage_name}
-                onChange={e => updateRow(i, 'stage_name', e.target.value)}
-                className="flex-1 px-2 py-1.5 border border-surface-border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-brand-500"
-              />
+              <input type="text" placeholder="Stage name" value={row.stage_name} onChange={e => updateRow(i, 'stage_name', e.target.value)} className="flex-1 px-2 py-1.5 border border-surface-border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-brand-500" />
             )}
-            <input
-              type="number"
-              placeholder="%"
-              value={row.percentage}
-              onChange={e => updateRow(i, 'percentage', e.target.value)}
-              className="w-16 px-2 py-1.5 border border-surface-border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-brand-500"
-            />
-            <input
-              type="date"
-              value={row.expected_date}
-              onChange={e => updateRow(i, 'expected_date', e.target.value)}
-              className="px-2 py-1.5 border border-surface-border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-brand-500 w-32"
-            />
+            <input type="number" placeholder="%" value={row.percentage} onChange={e => updateRow(i, 'percentage', e.target.value)} className="w-16 px-2 py-1.5 border border-surface-border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-brand-500" />
+            <input type="date" value={row.expected_date} onChange={e => updateRow(i, 'expected_date', e.target.value)} className="px-2 py-1.5 border border-surface-border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-brand-500 w-32" />
             <div className="text-xs text-ink-dim w-20 pt-2 text-right">
               {row.percentage ? formatCurrency(invoiceValue * Number(row.percentage) / 100) : '—'}
             </div>
@@ -381,9 +450,7 @@ function MilestoneBuilder({ invoiceId, invoiceValue, initialMilestones, onSaved,
           </div>
         ))}
       </div>
-
       <button onClick={addRow} className="text-xs text-brand-600 hover:underline mt-2">+ Add stage</button>
-
       <div className="flex items-center justify-between mt-3 pt-3 border-t border-surface-border">
         <p className={`text-xs font-medium ${isValid ? 'text-emerald-600' : 'text-amber-600'}`}>
           Total: {total.toFixed(2)}% {isValid ? '✓' : '(needs to be 100%)'}
@@ -414,9 +481,6 @@ function InvoiceModal({ projectId, invoice, onClose, onCreated, onUpdated }) {
   useEffect(() => {
     api.getRemainingInvoiceValue(projectId).then(data => {
       if (!data.error) {
-        // When editing, the amount this invoice already holds is part
-        // of "invoiced_total", so add it back in to get the true
-        // headroom available while editing this specific invoice.
         const adjusted = isEdit ? data.remaining + Number(invoice.invoice_value) : data.remaining
         setRemaining(adjusted)
       }
@@ -431,14 +495,8 @@ function InvoiceModal({ projectId, invoice, onClose, onCreated, onUpdated }) {
     setLoading(true)
     setError('')
     const payload = { ...form, invoice_value: Number(form.invoice_value) }
-    const result = isEdit
-      ? await api.updateInvoice(invoice.id, payload)
-      : await api.createInvoice(projectId, payload)
-    if (result.error) {
-      setError(result.error)
-      setLoading(false)
-      return
-    }
+    const result = isEdit ? await api.updateInvoice(invoice.id, payload) : await api.createInvoice(projectId, payload)
+    if (result.error) { setError(result.error); setLoading(false); return }
     isEdit ? onUpdated(result) : onCreated(result)
     setLoading(false)
   }
@@ -457,9 +515,7 @@ function InvoiceModal({ projectId, invoice, onClose, onCreated, onUpdated }) {
           <Field label="Invoice Date" type="date" value={form.invoice_date} onChange={v => setForm({ ...form, invoice_date: v })} optional />
           <Field label="Invoice Value (₹)" type="number" value={form.invoice_value} onChange={v => setForm({ ...form, invoice_value: v })} placeholder="3000000" />
         </div>
-        {overBudget && (
-          <p className="text-xs text-red-600 mt-2">This exceeds the remaining PO value by {formatCurrency(Number(form.invoice_value) - remaining)}</p>
-        )}
+        {overBudget && <p className="text-xs text-red-600 mt-2">Exceeds remaining PO value by {formatCurrency(Number(form.invoice_value) - remaining)}</p>}
         {error && <p className="text-sm text-red-600 mt-3">{error}</p>}
         <div className="flex gap-2 mt-5">
           <button onClick={onClose} className="flex-1 text-sm text-ink-dim border border-surface-border rounded-xl py-2">Cancel</button>
@@ -472,8 +528,6 @@ function InvoiceModal({ projectId, invoice, onClose, onCreated, onUpdated }) {
   )
 }
 
-// Tucked-away notes — collapsed by default, a small link toggles it
-// open. Not always visible, but always one click away.
 function ProjectNotesSection({ projectId, expanded, onToggle }) {
   const [notes, setNotes] = useState([])
   const [loaded, setLoaded] = useState(false)
@@ -493,10 +547,7 @@ function ProjectNotesSection({ projectId, expanded, onToggle }) {
     if (!text.trim()) return
     setPosting(true)
     const note = await api.addProjectNote(projectId, text)
-    if (!note.error) {
-      setNotes(prev => [note, ...prev])
-      setText('')
-    }
+    if (!note.error) { setNotes(prev => [note, ...prev]); setText('') }
     setPosting(false)
   }
 
@@ -508,17 +559,8 @@ function ProjectNotesSection({ projectId, expanded, onToggle }) {
       {expanded && (
         <div className="mt-3 bg-surface-card border border-surface-border rounded-card p-4">
           <div className="flex gap-2 mb-3">
-            <input
-              type="text"
-              value={text}
-              onChange={e => setText(e.target.value)}
-              placeholder="Add a note about this project..."
-              className="flex-1 px-3 py-2 border border-surface-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-              onKeyDown={e => e.key === 'Enter' && handleAdd()}
-            />
-            <button onClick={handleAdd} disabled={posting} className="text-xs text-surface bg-brand-500 hover:bg-brand-600 rounded-lg px-3 disabled:opacity-50">
-              Add
-            </button>
+            <input type="text" value={text} onChange={e => setText(e.target.value)} placeholder="Add a note about this project..." className="flex-1 px-3 py-2 border border-surface-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" onKeyDown={e => e.key === 'Enter' && handleAdd()} />
+            <button onClick={handleAdd} disabled={posting} className="text-xs text-surface bg-brand-500 hover:bg-brand-600 rounded-lg px-3 disabled:opacity-50">Add</button>
           </div>
           {notes.length === 0 ? (
             <p className="text-xs text-ink-faint">No notes yet.</p>
@@ -557,10 +599,7 @@ function InvoiceNotesSection({ invoiceId, expanded, onToggle }) {
     if (!text.trim()) return
     setPosting(true)
     const note = await api.addInvoiceNote(invoiceId, text)
-    if (!note.error) {
-      setNotes(prev => [note, ...prev])
-      setText('')
-    }
+    if (!note.error) { setNotes(prev => [note, ...prev]); setText('') }
     setPosting(false)
   }
 
@@ -572,17 +611,8 @@ function InvoiceNotesSection({ invoiceId, expanded, onToggle }) {
       {expanded && (
         <div className="mt-2 bg-surface border border-surface-border rounded-xl p-3">
           <div className="flex gap-2 mb-2">
-            <input
-              type="text"
-              value={text}
-              onChange={e => setText(e.target.value)}
-              placeholder="Add a note about this invoice..."
-              className="flex-1 px-2 py-1.5 border border-surface-border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-brand-500"
-              onKeyDown={e => e.key === 'Enter' && handleAdd()}
-            />
-            <button onClick={handleAdd} disabled={posting} className="text-xs text-surface bg-brand-500 hover:bg-brand-600 rounded-lg px-3 disabled:opacity-50">
-              Add
-            </button>
+            <input type="text" value={text} onChange={e => setText(e.target.value)} placeholder="Add a note about this invoice..." className="flex-1 px-2 py-1.5 border border-surface-border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-brand-500" onKeyDown={e => e.key === 'Enter' && handleAdd()} />
+            <button onClick={handleAdd} disabled={posting} className="text-xs text-surface bg-brand-500 hover:bg-brand-600 rounded-lg px-3 disabled:opacity-50">Add</button>
           </div>
           {notes.length === 0 ? (
             <p className="text-xs text-ink-faint">No notes yet.</p>
@@ -608,13 +638,7 @@ function Field({ label, value, onChange, optional, type = 'text', placeholder })
       <label className="block text-xs font-medium text-ink-dim mb-1">
         {label} {optional && <span className="text-ink-faint">(optional)</span>}
       </label>
-      <input
-        type={type}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full px-3 py-2 border border-surface-border rounded-xl text-sm bg-surface text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-      />
+      <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className="w-full px-3 py-2 border border-surface-border rounded-xl text-sm bg-surface text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent" />
     </div>
   )
 }
