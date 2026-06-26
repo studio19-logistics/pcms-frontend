@@ -110,6 +110,9 @@ export default function ProjectDetail({ projectId, onBack }) {
         </div>
       </div>
 
+      {/* Milestone alerts */}
+      <MilestoneAlerts invoices={invoices} onMilestoneUpdated={load} />
+
       {/* Invoices */}
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-medium text-ink">Invoices</h3>
@@ -139,7 +142,7 @@ export default function ProjectDetail({ projectId, onBack }) {
         </div>
       )}
 
-      {/* Project-level notes — tucked at the bottom, toggle to open */}
+      {/* Project-level notes */}
       <ProjectNotesSection projectId={projectId} expanded={showProjectNotes} onToggle={() => setShowProjectNotes(v => !v)} />
 
       {showAddInvoice && (
@@ -153,7 +156,6 @@ export default function ProjectDetail({ projectId, onBack }) {
     </div>
   )
 }
-
 function InvoiceCard({ invoice, onUpdated, onDeleted }) {
   const [expanded, setExpanded] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
