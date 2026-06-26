@@ -202,7 +202,7 @@ function MilestoneList({
 
           {showSnooze && snoozeTarget === m.id && (
             <div className="mt-3 pt-3 border-t border-surface-border flex items-center gap-2 flex-wrap">
-              {[1,3,7,14].map(d=>(
+              {[1, 3, 5, 7].map(d => (
                 <button
                   key={d}
                   onClick={()=>setSnoozeDays(d)}
@@ -215,6 +215,14 @@ function MilestoneList({
                   {d}d
                 </button>
               ))}
+                  <input
+                  type="number"
+                  min="1"
+                  max="30"
+                  placeholder="Custom"
+                  onChange={e => setSnoozeDays(Number(e.target.value))}
+                  className="w-16 text-xs px-2 py-1 rounded-lg border border-gray-200 text-gray-600 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                 />
               <button
                 disabled={saving}
                 onClick={()=>handleSnooze(m.id)}
