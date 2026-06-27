@@ -16,14 +16,11 @@ async function request(url, options = {}) {
   return res.json()
 }
 
-// Clients
-export const getClients = () => request('/api/clients')
-export const getClient = (id) => request(`/api/clients/${id}`)
-export const createClient = (data) => request('/api/clients', { method: 'POST', body: JSON.stringify(data) })
-export const updateClient = (id, data) => request(`/api/clients/${id}`, { method: 'PUT', body: JSON.stringify(data) })
-export const deleteClient = (id) => request(`/api/clients/${id}`, { method: 'DELETE' })
-export const addContact = (clientId, data) => request(`/api/clients/${clientId}/contacts`, { method: 'POST', body: JSON.stringify(data) })
-export const deleteContact = (contactId) => request(`/api/clients/contacts/${contactId}`, { method: 'DELETE' })
+// Architects / PMC — created/edited inline via the project form now;
+// only direct read (for the POC modal) and POC management remain here.
+export const getArchitect = (id) => request(`/api/architects/${id}`)
+export const addPoc = (architectId, data) => request(`/api/architects/${architectId}/pocs`, { method: 'POST', body: JSON.stringify(data) })
+export const deletePoc = (pocId) => request(`/api/architects/pocs/${pocId}`, { method: 'DELETE' })
 
 // Projects
 export const getProjects = (params = {}) => {
@@ -33,37 +30,34 @@ export const getProjects = (params = {}) => {
 export const getProject = (id) => request(`/api/projects/${id}`)
 export const createProject = (data) => request('/api/projects', { method: 'POST', body: JSON.stringify(data) })
 export const updateProject = (id, data) => request(`/api/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) })
-export const reassignProject = (id, ownerId) => request(`/api/projects/${id}/reassign`, { method: 'PATCH', body: JSON.stringify({ owner_id: ownerId }) })
+export const updateProjectStatus = (id, status) => request(`/api/projects/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) })
 export const deleteProject = (id) => request(`/api/projects/${id}`, { method: 'DELETE' })
 
-// Invoices
-export const getInvoices = (projectId) => request(`/api/invoices/project/${projectId}`)
-export const getRemainingInvoiceValue = (projectId) => request(`/api/invoices/project/${projectId}/remaining`)
-export const createInvoice = (projectId, data) => request(`/api/invoices/project/${projectId}`, { method: 'POST', body: JSON.stringify(data) })
+// Milestones — scoped to a project directly
+export const getMilestones = (projectId) => request(`/api/milestones/project/${projectId}`)
+export const saveMilestones = (projectId, milestones) => request(`/api/milestones/project/${projectId}`, { method: 'PUT', body: JSON.stringify({ milestones }) })
+export const updateMilestoneStatus = (id, status, actualDate) => request(`/api/milestones/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, actual_payment_date: actualDate }) })
+export const snoozeMilestone = (id, days) => request(`/api/milestones/${id}/snooze`, { method: 'PATCH', body: JSON.stringify({ days }) })
+export const unsnoozeMilestone = (id) => request(`/api/milestones/${id}/unsnooze`, { method: 'PATCH' })
+
+// Invoices — scoped to a milestone, not a project directly
+export const getInvoices = (milestoneId) => request(`/api/invoices/milestone/${milestoneId}`)
+export const createInvoice = (milestoneId, data) => request(`/api/invoices/milestone/${milestoneId}`, { method: 'POST', body: JSON.stringify(data) })
 export const updateInvoice = (id, data) => request(`/api/invoices/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const updateInvoiceStatus = (id, paymentStatus) => request(`/api/invoices/${id}/status`, { method: 'PATCH', body: JSON.stringify({ payment_status: paymentStatus }) })
+export const snoozeInvoice = (id, days) => request(`/api/invoices/${id}/snooze`, { method: 'PATCH', body: JSON.stringify({ days }) })
+export const unsnoozeInvoice = (id) => request(`/api/invoices/${id}/unsnooze`, { method: 'PATCH' })
 export const deleteInvoice = (id) => request(`/api/invoices/${id}`, { method: 'DELETE' })
 
-// Milestones — scoped to an invoice, not a project directly
-export const getMilestones = (invoiceId) => request(`/api/milestones/invoice/${invoiceId}`)
-export const saveMilestones = (invoiceId, milestones) => request(`/api/milestones/invoice/${invoiceId}`, { method: 'PUT', body: JSON.stringify({ milestones }) })
-export const updateMilestoneStatus = (id, status, actualDate) => request(`/api/milestones/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, actual_payment_date: actualDate }) })
-
-// Notes — project-level and invoice-level
+// Notes — project-level only
 export const getProjectNotes = (projectId) => request(`/api/notes/project/${projectId}`)
 export const addProjectNote = (projectId, note) => request(`/api/notes/project/${projectId}`, { method: 'POST', body: JSON.stringify({ note }) })
 export const deleteProjectNote = (noteId) => request(`/api/notes/project-note/${noteId}`, { method: 'DELETE' })
 
-export const getInvoiceNotes = (invoiceId) => request(`/api/notes/invoice/${invoiceId}`)
-export const addInvoiceNote = (invoiceId, note) => request(`/api/notes/invoice/${invoiceId}`, { method: 'POST', body: JSON.stringify({ note }) })
-export const deleteInvoiceNote = (noteId) => request(`/api/notes/invoice-note/${noteId}`, { method: 'DELETE' })
-
 // Dashboard
 export const getCollections = () => request('/api/dashboard/collections')
 export const getKpis = () => request('/api/dashboard/kpis')
-
-export const snoozeMilestone = (id, days) => request(`/api/milestones/${id}/snooze`, { method: 'PATCH', body: JSON.stringify({ days }) })
-export const unsnoozeMilestone = (id) => request(`/api/milestones/${id}/unsnooze`, { method: 'PATCH' })
-
+export const getPeopleAnalytics = () => request('/api/dashboard/people')
 export const getActivity = () => request('/api/dashboard/activity?limit=50')
 
 export const getTeamMembers = () => request('/api/projects/team-members')

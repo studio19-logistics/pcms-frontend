@@ -1,18 +1,15 @@
 import { useEffect, useState } from 'react'
 import * as api from '../api'
 
-const STATUS_OPTIONS = ['active', 'completed', 'on_hold', 'cancelled']
+const STATUS_OPTIONS = ['active', 'completed']
 
 const STATUS_STYLE = {
   active: 'bg-emerald-400/10 text-emerald-300 border-emerald-400/30',
   completed: 'bg-blue-400/10 text-blue-300 border-blue-400/30',
-  on_hold: 'bg-amber-400/10 text-amber-300 border-amber-400/30',
-  cancelled: 'bg-surface-raised text-ink-faint border-surface-border',
 }
 
 export default function Projects({ onOpenProject }) {
   const [projects, setProjects] = useState([])
-  const [clients, setClients] = useState([])
   const [teamMembers, setTeamMembers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -23,12 +20,11 @@ export default function Projects({ onOpenProject }) {
 
   async function loadAll() {
     setLoading(true)
-    const [projectData, clientData, teamData] = await Promise.all([
-      api.getProjects(), api.getClients(), api.getTeamMembers()
+    const [projectData, teamData] = await Promise.all([
+      api.getProjects(), api.getTeamMembers()
     ])
     if (projectData.error) setError(projectData.error)
     else setProjects(projectData)
-    if (!clientData.error) setClients(clientData)
     if (!teamData.error) setTeamMembers(teamData)
     setLoading(false)
   }
@@ -58,16 +54,11 @@ export default function Projects({ onOpenProject }) {
           </div>
           <button
             onClick={() => setShowCreate(true)}
-            disabled={clients.length === 0}
-            className="bg-brand-500 hover:bg-brand-600 text-surface text-sm font-medium px-4 py-2 rounded-lg transition disabled:opacity-50"
+            className="bg-brand-500 hover:bg-brand-600 text-surface text-sm font-medium px-4 py-2 rounded-lg transition"
           >
             + New Project
           </button>
         </div>
-
-        {clients.length === 0 && (
-          <p className="text-xs text-amber-600 mb-4">You need at least one client before creating a project.</p>
-        )}
 
         <div className="flex gap-1.5 mb-5">
           <FilterPill label="All" active={statusFilter === 'all'} onClick={() => setStatusFilter('all')} />
@@ -90,7 +81,6 @@ export default function Projects({ onOpenProject }) {
               <ProjectRow
                 key={project.id}
                 project={project}
-                clients={clients}
                 teamMembers={teamMembers}
                 onClick={() => onOpenProject?.(project.id)}
                 onUpdated={handleUpdated}
@@ -102,7 +92,6 @@ export default function Projects({ onOpenProject }) {
 
         {showCreate && (
           <ProjectModal
-            clients={clients}
             teamMembers={teamMembers}
             onClose={() => setShowCreate(false)}
             onCreated={handleCreated}
@@ -126,8 +115,9 @@ function FilterPill({ label, active, onClick }) {
   )
 }
 
-function ProjectRow({ project, clients, teamMembers, onClick, onUpdated, onDeleted }) {
+function ProjectRow({ project, teamMembers, onClick, onUpdated, onDeleted }) {
   const [showEdit, setShowEdit] = useState(false)
+  const [showArchitectPocs, setShowArchitectPocs] = useState(false)
 
   async function handleDelete(e) {
     e.stopPropagation()
@@ -149,7 +139,14 @@ function ProjectRow({ project, clients, teamMembers, onClick, onUpdated, onDelet
           </span>
         </div>
         <p className="text-xs text-ink-dim mt-0.5">
-          {project.clients?.company_name || 'Unknown client'} · {project.team_members?.name || 'No owner'}
+          {project.architects?.company_name ? (
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowArchitectPocs(true) }}
+              className="hover:text-brand-600 hover:underline"
+            >
+              {project.architects.company_name}
+            </button>
+          ) : 'No architect/PMC'} · {project.team_members?.name || 'No owner'}
         </p>
       </div>
       <div className="flex items-center gap-3 flex-shrink-0 ml-4">
@@ -172,10 +169,19 @@ function ProjectRow({ project, clients, teamMembers, onClick, onUpdated, onDelet
         <div onClick={e => e.stopPropagation()}>
           <ProjectModal
             project={project}
-            clients={clients}
             teamMembers={teamMembers}
             onClose={() => setShowEdit(false)}
             onUpdated={(updated) => { onUpdated(updated); setShowEdit(false) }}
+          />
+        </div>
+      )}
+
+      {showArchitectPocs && (
+        <div onClick={e => e.stopPropagation()}>
+          <ArchitectPocsModal
+            architectId={project.architect_id}
+            architectName={project.architects?.company_name}
+            onClose={() => setShowArchitectPocs(false)}
           />
         </div>
       )}
@@ -183,31 +189,96 @@ function ProjectRow({ project, clients, teamMembers, onClick, onUpdated, onDelet
   )
 }
 
-function ProjectModal({ project, clients = [], teamMembers = [], onClose, onCreated, onUpdated }) {
+function ArchitectPocsModal({ architectId, architectName, onClose }) {
+  const [pocs, setPocs] = useState(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    api.getArchitect(architectId).then(data => {
+      if (data.error) setError(data.error)
+      else setPocs(data.architect_pocs || [])
+    })
+  }, [architectId])
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+      <div className="bg-surface-card border border-surface-border rounded-card p-6 w-full max-w-md shadow-xl">
+        <h3 className="font-serif text-xl text-ink mb-4">{architectName}</h3>
+        <p className="text-xs font-medium text-ink-dim mb-2">POCs</p>
+
+        {error && <p className="text-sm text-red-600">{error}</p>}
+
+        {pocs === null ? (
+          <p className="text-xs text-ink-dim">Loading...</p>
+        ) : pocs.length === 0 ? (
+          <p className="text-xs text-ink-faint">No POCs added for this architect/PMC</p>
+        ) : (
+          <div className="space-y-2">
+            {pocs.map(poc => (
+              <div key={poc.id} className="bg-surface border border-surface-border rounded-xl px-3 py-2">
+                <p className="text-xs font-medium text-ink">
+                  {poc.poc_name} {poc.is_primary && <span className="text-brand-600">(Primary)</span>}
+                </p>
+                {poc.designation && <p className="text-xs text-ink-dim">{poc.designation}</p>}
+                {poc.phone_number && <p className="text-xs text-ink-dim">{poc.phone_number}</p>}
+                {poc.email && <p className="text-xs text-ink-dim">{poc.email}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <button onClick={onClose} className="w-full text-sm text-ink-dim border border-surface-border rounded-xl py-2 mt-5">
+          Close
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function emptyPoc() {
+  return { poc_name: '', email: '', phone_number: '', is_primary: false }
+}
+
+function ProjectModal({ project, teamMembers = [], onClose, onCreated, onUpdated }) {
   const isEdit = !!project
   const [form, setForm] = useState({
     project_name: project?.project_name || '',
-    client_id: project?.client_id || '',
+    architect_name: project?.architects?.company_name || '',
     owner_id: project?.owner_id || '',
     po_number: project?.po_number || '',
     po_date: project?.po_date || '',
-    invoice_number: project?.invoice_number || '',
-    invoice_date: project?.invoice_date || '',
     project_value: project?.project_value || '',
-    order_date: project?.order_date || '',
-    status: project?.status || 'active',
   })
+  // Inline optional POCs, only collected at creation time. For edits,
+  // POCs are managed via the architect name -> POC modal click-through.
+  const [pocs, setPocs] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  function addPocRow() {
+    setPocs(prev => [...prev, emptyPoc()])
+  }
+
+  function updatePocRow(index, field, value) {
+    setPocs(prev => prev.map((p, i) => i === index ? { ...p, [field]: value } : p))
+  }
+
+  function removePocRow(index) {
+    setPocs(prev => prev.filter((_, i) => i !== index))
+  }
+
   async function handleSubmit() {
     if (!form.project_name.trim()) return setError('Project name is required')
-    if (!isEdit && !form.client_id) return setError('Select a client')
     if (!form.project_value || Number(form.project_value) <= 0) return setError('Project value must be greater than 0')
     setLoading(true)
     setError('')
     try {
-      const payload = { ...form, project_value: Number(form.project_value), owner_id: form.owner_id || null }
+      const payload = {
+        ...form,
+        project_value: Number(form.project_value),
+        owner_id: form.owner_id || null,
+        architect_pocs: isEdit ? undefined : pocs.filter(p => p.poc_name.trim()),
+      }
       const result = isEdit ? await api.updateProject(project.id, payload) : await api.createProject(payload)
       if (result.error) throw new Error(result.error)
       isEdit ? onUpdated(result) : onCreated(result)
@@ -224,17 +295,31 @@ function ProjectModal({ project, clients = [], teamMembers = [], onClose, onCrea
         <div className="space-y-3">
           <Field label="Project Name" value={form.project_name} onChange={v => setForm({ ...form, project_name: v })} placeholder="e.g. Installation — Phase 2" />
 
+          <Field label="Architect / PMC" value={form.architect_name} onChange={v => setForm({ ...form, architect_name: v })} placeholder="e.g. ABC Architects" optional />
+
           {!isEdit && (
             <div>
-              <label className="block text-xs font-medium text-ink-dim mb-1">Client</label>
-              <select
-                value={form.client_id}
-                onChange={e => setForm({ ...form, client_id: e.target.value })}
-                className="w-full px-3 py-2 bg-surface border border-surface-border rounded-xl text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-500"
-              >
-                <option value="">Select a client...</option>
-                {clients.map(c => <option key={c.id} value={c.id}>{c.company_name}</option>)}
-              </select>
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-xs font-medium text-ink-dim">POCs <span className="text-ink-faint">(optional)</span></p>
+                <button onClick={addPocRow} className="text-xs text-brand-600 hover:underline">+ Add POC</button>
+              </div>
+              <div className="space-y-3">
+                {pocs.map((poc, i) => (
+                  <div key={i} className="border border-surface-border rounded-xl p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-ink-faint">POC {i + 1}</p>
+                      <button onClick={() => removePocRow(i)} className="text-xs text-ink-faint hover:text-red-600">Remove</button>
+                    </div>
+                    <Field label="Name" value={poc.poc_name} onChange={v => updatePocRow(i, 'poc_name', v)} />
+                    <Field label="Phone" value={poc.phone_number} onChange={v => updatePocRow(i, 'phone_number', v)} optional />
+                    <Field label="Email" value={poc.email} onChange={v => updatePocRow(i, 'email', v)} optional type="email" />
+                    <label className="flex items-center gap-2 text-xs text-ink-dim">
+                      <input type="checkbox" checked={poc.is_primary} onChange={e => updatePocRow(i, 'is_primary', e.target.checked)} />
+                      Set as primary contact
+                    </label>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -254,24 +339,7 @@ function ProjectModal({ project, clients = [], teamMembers = [], onClose, onCrea
             <Field label="PO Number" value={form.po_number} onChange={v => setForm({ ...form, po_number: v })} optional />
             <Field label="PO Date" type="date" value={form.po_date} onChange={v => setForm({ ...form, po_date: v })} optional />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Invoice Number" value={form.invoice_number} onChange={v => setForm({ ...form, invoice_number: v })} optional />
-            <Field label="Invoice Date" type="date" value={form.invoice_date} onChange={v => setForm({ ...form, invoice_date: v })} optional />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Project Value (₹)" type="number" value={form.project_value} onChange={v => setForm({ ...form, project_value: v })} placeholder="1000000" />
-            <Field label="Order Date" type="date" value={form.order_date} onChange={v => setForm({ ...form, order_date: v })} optional />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-ink-dim mb-1">Status</label>
-            <select
-              value={form.status}
-              onChange={e => setForm({ ...form, status: e.target.value })}
-              className="w-full px-3 py-2 bg-surface border border-surface-border rounded-xl text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-500"
-            >
-              {STATUS_OPTIONS.map(s => <option key={s} value={s}>{formatStatus(s)}</option>)}
-            </select>
-          </div>
+          <Field label="Project Value (₹)" type="number" value={form.project_value} onChange={v => setForm({ ...form, project_value: v })} placeholder="1000000" />
         </div>
         {error && <p className="text-sm text-red-600 mt-3">{error}</p>}
         <div className="flex gap-2 mt-5">
