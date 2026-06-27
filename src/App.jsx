@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import Dashboard from './pages/Dashboard'
-import Clients from './pages/Clients'
 import Projects from './pages/Projects'
 import ProjectDetail from './pages/ProjectDetail'
 import Collections from './pages/Collections'
@@ -38,7 +37,6 @@ export default function App() {
       {page === 'collections' && !selectedProjectId && (
         <Collections onOpenProject={(id) => openProjectFrom('collections', id)} />
       )}
-      {page === 'clients' && <Clients />}
       {page === 'projects' && !selectedProjectId && (
         <Projects onOpenProject={(id) => openProjectFrom('projects', id)} />
       )}

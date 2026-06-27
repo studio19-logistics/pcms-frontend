@@ -3,6 +3,7 @@ import * as api from '../api'
 
 export default function Collections({ onOpenProject }) {
   const [data, setData] = useState(null)
+  const [people, setPeople] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [tab, setTab] = useState('overdue')
@@ -11,9 +12,10 @@ export default function Collections({ onOpenProject }) {
 
   async function load() {
     setLoading(true)
-    const result = await api.getCollections()
+    const [result, peopleResult] = await Promise.all([api.getCollections(), api.getPeopleAnalytics()])
     if (result.error) setError(result.error)
     else setData(result)
+    if (!peopleResult.error) setPeople(peopleResult)
     setLoading(false)
   }
 
@@ -42,6 +44,7 @@ export default function Collections({ onOpenProject }) {
     { id: 'due_today', label: 'Due Today', count: data.due_today.length, color: 'amber' },
     { id: 'upcoming', label: 'Upcoming', count: data.upcoming.length, color: 'blue' },
     { id: 'recent', label: 'Recently Collected', count: data.recently_collected.length, color: 'green' },
+    { id: 'people', label: 'People', count: (people || []).length, color: 'purple' },
   ]
 
   return (
@@ -54,7 +57,7 @@ export default function Collections({ onOpenProject }) {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
           {TABS.map(t => (
             <button
               key={t.id}
@@ -106,6 +109,10 @@ export default function Collections({ onOpenProject }) {
             onOpenProject={onOpenProject}
           />
         )}
+
+        {tab === 'people' && (
+          <PeopleAnalytics people={people || []} />
+        )}
       </div>
     </div>
   )
@@ -122,10 +129,6 @@ function MilestoneList({
   const [snoozeTarget, setSnoozeTarget] = useState(null)
   const [snoozeDays, setSnoozeDays] = useState(3)
   const [saving, setSaving] = useState(false)
-
-  async function snooze(id) {
-    setSaving(true)
-  }
 
   async function handleSnooze(id) {
     setSaving(true)
@@ -162,9 +165,9 @@ function MilestoneList({
             <div className="min-w-0">
               <p className="text-sm font-medium text-ink truncate">{m.project_name}</p>
               <p className="text-xs text-ink-dim mt-0.5">
-                {m.client_name} · {m.stage_name} · Due {formatDate(m.expected_date)}
-                {showOverdueDays && m.days_overdue > 0 && (
-                  <span className="text-red-400 font-medium"> · {m.days_overdue}d overdue</span>
+                {m.stage_name} · Due {formatDate(m.expected_date)}
+                {showOverdueDays && m.live_status === 'overdue' && (
+                  <span className="text-red-400 font-medium"> · overdue</span>
                 )}
                 {m.snoozed_until && (
                   <span className="text-amber-300 font-medium">
@@ -258,9 +261,9 @@ function RecentList({ items, onOpenProject }) {
           className="bg-surface-card border border-surface-border rounded-card p-4 flex items-center justify-between cursor-pointer hover:border-brand-500/50 transition"
         >
           <div>
-            <p className="text-sm font-medium text-ink">{m.project_name || m.projects?.project_name}</p>
+            <p className="text-sm font-medium text-ink">{m.project_name}</p>
             <p className="text-xs text-ink-dim">
-              {(m.client_name || m.projects?.clients?.company_name)} · {m.stage_name} · Paid {formatDate(m.actual_payment_date)}
+              {m.architect_name ? `${m.architect_name} · ` : ''}{m.stage_name} · Paid {formatDate(m.actual_payment_date)}
             </p>
           </div>
           <p className="text-sm font-semibold text-emerald-300">{formatCurrency(m.amount)}</p>
@@ -270,12 +273,50 @@ function RecentList({ items, onOpenProject }) {
   )
 }
 
+function PeopleAnalytics({ people }) {
+  if (!people.length) {
+    return <div className="text-center py-12 border border-dashed border-surface-border rounded-card"><p className="text-sm text-ink-dim">No team members found.</p></div>
+  }
+
+  return (
+    <div className="space-y-3">
+      {people.map(p => (
+        <div key={p.owner_id} className="bg-surface-card border border-surface-border rounded-card p-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-medium text-ink">{p.owner_name}</p>
+            <p className="text-xs text-ink-dim">{p.collection_percentage}% collected</p>
+          </div>
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 text-xs">
+            <Stat label="Total Projects" value={p.total_projects} />
+            <Stat label="Active" value={p.active_projects} />
+            <Stat label="Completed" value={p.completed_projects} />
+            <Stat label="Project Value" value={formatCurrency(p.total_project_value)} />
+            <Stat label="Received" value={formatCurrency(p.amount_received)} highlight="green" />
+            <Stat label="Outstanding" value={formatCurrency(p.outstanding_amount)} highlight="amber" />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function Stat({ label, value, highlight }) {
+  const color = highlight === 'green' ? 'text-emerald-300' : highlight === 'amber' ? 'text-amber-300' : 'text-ink'
+  return (
+    <div>
+      <p className={`text-sm font-medium ${color}`}>{value}</p>
+      <p className="text-ink-faint mt-0.5">{label}</p>
+    </div>
+  )
+}
+
 function colorClass(color){
   return {
     red:'text-red-300',
     amber:'text-amber-300',
     blue:'text-blue-300',
-    green:'text-emerald-300'
+    green:'text-emerald-300',
+    purple:'text-purple-300'
   }[color] || 'text-ink'
 }
 

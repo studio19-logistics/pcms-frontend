@@ -1,11 +1,9 @@
-import { useAuth } from '../AuthContext'
 import { useEffect, useState } from 'react'
 import * as api from '../api'
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'collections', label: 'Collections' },
-  { id: 'clients', label: 'Clients' },
   { id: 'projects', label: 'Projects' },
 ]
 
@@ -22,35 +20,31 @@ function formatAction(action, entityName) {
     project_created: `Project created`,
     project_updated: `Project updated`,
     project_deleted: `Project deleted`,
-    project_reassigned: `Project reassigned`,
+    project_status_changed: `Project status changed`,
     invoice_created: `Invoice added`,
     invoice_updated: `Invoice updated`,
     invoice_deleted: `Invoice deleted`,
+    invoice_marked_paid: `Invoice marked paid`,
+    invoice_marked_pending: `Invoice marked pending`,
+    invoice_snoozed: `Invoice snoozed`,
+    invoice_unsnoozed: `Invoice unsnoozed`,
     milestones_updated: `Milestones updated`,
     milestone_marked_paid: `Milestone marked paid`,
     milestone_marked_pending: `Milestone marked pending`,
     milestone_snoozed: `Milestone snoozed`,
     milestone_unsnoozed: `Milestone unsnoozed`,
-    client_created: `Client added`,
-    client_updated: `Client updated`,
-    client_deleted: `Client deleted`,
-    contact_added: `Contact added`,
-    contact_deleted: `Contact deleted`,
+    architect_created: `Architect/PMC added`,
+    architect_updated: `Architect/PMC updated`,
+    architect_deleted: `Architect/PMC deleted`,
+    poc_added: `POC added`,
+    poc_deleted: `POC deleted`,
     project_note_added: `Note added`,
-    invoice_note_added: `Note added`,
     project_note_deleted: `Note deleted`,
-    invoice_note_deleted: `Note deleted`,
   }
   return `${labels[action] || action}${entityName ? ` — ${entityName}` : ''}`
 }
 
-function initials(name) {
-  if (!name) return '?'
-  return name.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase()
-}
-
 export default function NavBar({ active, onNavigate }) {
-  const { profile, logout } = useAuth()
   const [open, setOpen] = useState(false)
   const [activities, setActivities] = useState([])
   const [unread, setUnread] = useState(0)
@@ -93,11 +87,11 @@ export default function NavBar({ active, onNavigate }) {
         <div className="px-6 pt-5 pb-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-brand-500 text-surface flex items-center justify-center text-sm font-medium flex-shrink-0">
-              {initials(profile?.full_name)}
+              S19
             </div>
             <div>
-              <p className="text-sm font-medium text-ink">{profile?.full_name}</p>
-              <p className="text-xs text-ink-dim capitalize">{profile?.role}</p>
+              <p className="text-sm font-medium text-ink">Studio19 PCMS</p>
+              <p className="text-xs text-ink-dim">Project Collections Management</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -114,12 +108,6 @@ export default function NavBar({ active, onNavigate }) {
                   {unread > 9 ? '9+' : unread}
                 </span>
               )}
-            </button>
-            <button
-              onClick={logout}
-              className="text-xs text-ink-dim hover:text-ink border border-surface-border rounded-pill px-3 py-1.5 transition"
-            >
-              Sign out
             </button>
           </div>
         </div>

@@ -71,7 +71,7 @@ export default function Dashboard({ onNavigateToCollections }) {
 
         {kpis && kpis.total_projects === 0 && (
           <div className="mt-8 text-center py-12 border border-dashed border-surface-border rounded-card">
-            <p className="text-sm text-ink-dim">No projects yet. Client and project creation coming next.</p>
+            <p className="text-sm text-ink-dim">No projects yet. Head to Projects to create your first one.</p>
           </div>
         )}
       </main>
