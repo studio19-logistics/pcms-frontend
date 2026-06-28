@@ -235,12 +235,30 @@ function ArchitectPocsModal({ architectId, architectName, onClose }) {
   )
 }
 
+const STAGE_TYPES = [
+  { value: 'advance', label: 'Advance' },
+  { value: 'before_dispatch', label: 'Before Dispatch' },
+  { value: 'dispatch', label: 'Dispatch' },
+  { value: 'delivery', label: 'Delivery' },
+  { value: 'installation', label: 'Installation' },
+  { value: 'commissioning', label: 'Commissioning' },
+  { value: 'fat', label: 'FAT' },
+  { value: 'sat', label: 'SAT' },
+  { value: 'retention', label: 'Retention' },
+  { value: 'custom', label: 'Custom Stage' },
+]
+
 function emptyPoc() {
   return { poc_name: '', email: '', phone_number: '', is_primary: false }
 }
 
+function emptyMilestoneRow() {
+  return { stage_type: 'advance', stage_name: '', percentage: '', expected_date: '' }
+}
+
 function ProjectModal({ project, teamMembers = [], onClose, onCreated, onUpdated }) {
   const isEdit = !!project
+  const [step, setStep] = useState(1)
   const [form, setForm] = useState({
     project_name: project?.project_name || '',
     architect_name: project?.architects?.company_name || '',
@@ -252,24 +270,66 @@ function ProjectModal({ project, teamMembers = [], onClose, onCreated, onUpdated
   // Inline optional POCs, only collected at creation time. For edits,
   // POCs are managed via the architect name -> POC modal click-through.
   const [pocs, setPocs] = useState([])
+  const [milestoneRows, setMilestoneRows] = useState([emptyMilestoneRow()])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   function addPocRow() {
     setPocs(prev => [...prev, emptyPoc()])
   }
-
   function updatePocRow(index, field, value) {
     setPocs(prev => prev.map((p, i) => i === index ? { ...p, [field]: value } : p))
   }
-
   function removePocRow(index) {
     setPocs(prev => prev.filter((_, i) => i !== index))
   }
 
-  async function handleSubmit() {
+  function updateMilestoneRow(index, field, value) {
+    setMilestoneRows(prev => prev.map((r, i) => i === index ? { ...r, [field]: value } : r))
+  }
+  function addMilestoneRow() {
+    setMilestoneRows(prev => [...prev, emptyMilestoneRow()])
+  }
+  function removeMilestoneRow(index) {
+    setMilestoneRows(prev => prev.filter((_, i) => i !== index))
+  }
+  function stageLabel(row) {
+    if (row.stage_type === 'custom') return row.stage_name?.trim() || 'Custom Stage'
+    return STAGE_TYPES.find(t => t.value === row.stage_type)?.label || row.stage_type
+  }
+
+  const milestoneTotal = milestoneRows.reduce((sum, r) => sum + (Number(r.percentage) || 0), 0)
+  const milestoneTotalValid = Math.abs(milestoneTotal - 100) < 0.01
+
+  function handleNext() {
     if (!form.project_name.trim()) return setError('Project name is required')
     if (!form.project_value || Number(form.project_value) <= 0) return setError('Project value must be greater than 0')
+    setError('')
+    setStep(2)
+  }
+
+  async function handleSubmit() {
+    if (isEdit) {
+      if (!form.project_name.trim()) return setError('Project name is required')
+      if (!form.project_value || Number(form.project_value) <= 0) return setError('Project value must be greater than 0')
+      setLoading(true)
+      setError('')
+      try {
+        const payload = { ...form, project_value: Number(form.project_value), owner_id: form.owner_id || null }
+        const result = await api.updateProject(project.id, payload)
+        if (result.error) throw new Error(result.error)
+        onUpdated(result)
+      } catch (err) {
+        setError(err.message)
+      }
+      setLoading(false)
+      return
+    }
+
+    if (milestoneRows.some(r => !r.percentage || !r.expected_date)) return setError('Every milestone needs a percentage and a due date')
+    if (milestoneRows.some(r => r.stage_type === 'custom' && !r.stage_name?.trim())) return setError('Custom stages need a name')
+    if (!milestoneTotalValid) return setError(`Milestone percentages must total 100%. Currently: ${milestoneTotal.toFixed(2)}%`)
+
     setLoading(true)
     setError('')
     try {
@@ -277,11 +337,21 @@ function ProjectModal({ project, teamMembers = [], onClose, onCreated, onUpdated
         ...form,
         project_value: Number(form.project_value),
         owner_id: form.owner_id || null,
-        architect_pocs: isEdit ? undefined : pocs.filter(p => p.poc_name.trim()),
+        architect_pocs: pocs.filter(p => p.poc_name.trim()),
       }
-      const result = isEdit ? await api.updateProject(project.id, payload) : await api.createProject(payload)
+      const result = await api.createProject(payload)
       if (result.error) throw new Error(result.error)
-      isEdit ? onUpdated(result) : onCreated(result)
+
+      const milestonePayload = milestoneRows.map(r => ({
+        stage_name: stageLabel(r),
+        stage_type: r.stage_type,
+        percentage: Number(r.percentage),
+        expected_date: r.expected_date,
+      }))
+      const milestoneResult = await api.saveMilestones(result.id, milestonePayload)
+      if (milestoneResult.error) throw new Error(milestoneResult.error)
+
+      onCreated(result)
     } catch (err) {
       setError(err.message)
     }
@@ -291,62 +361,120 @@ function ProjectModal({ project, teamMembers = [], onClose, onCreated, onUpdated
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4 overflow-y-auto py-8">
       <div className="bg-surface-card border border-surface-border rounded-card p-6 w-full max-w-lg shadow-xl">
-        <h3 className="font-serif text-xl text-ink mb-4">{isEdit ? 'Edit Project' : 'New Project'}</h3>
-        <div className="space-y-3">
-          <Field label="Project Name" value={form.project_name} onChange={v => setForm({ ...form, project_name: v })} placeholder="e.g. Installation — Phase 2" />
-
-          <Field label="Architect / PMC" value={form.architect_name} onChange={v => setForm({ ...form, architect_name: v })} placeholder="e.g. ABC Architects" optional />
-
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-serif text-xl text-ink">{isEdit ? 'Edit Project' : 'New Project'}</h3>
           {!isEdit && (
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-xs font-medium text-ink-dim">POCs <span className="text-ink-faint">(optional)</span></p>
-                <button onClick={addPocRow} className="text-xs text-brand-600 hover:underline">+ Add POC</button>
-              </div>
-              <div className="space-y-3">
-                {pocs.map((poc, i) => (
-                  <div key={i} className="border border-surface-border rounded-xl p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs text-ink-faint">POC {i + 1}</p>
-                      <button onClick={() => removePocRow(i)} className="text-xs text-ink-faint hover:text-red-600">Remove</button>
-                    </div>
-                    <Field label="Name" value={poc.poc_name} onChange={v => updatePocRow(i, 'poc_name', v)} />
-                    <Field label="Phone" value={poc.phone_number} onChange={v => updatePocRow(i, 'phone_number', v)} optional />
-                    <Field label="Email" value={poc.email} onChange={v => updatePocRow(i, 'email', v)} optional type="email" />
-                    <label className="flex items-center gap-2 text-xs text-ink-dim">
-                      <input type="checkbox" checked={poc.is_primary} onChange={e => updatePocRow(i, 'is_primary', e.target.checked)} />
-                      Set as primary contact
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <p className="text-xs text-ink-faint">Step {step} of 2</p>
           )}
-
-          <div>
-            <label className="block text-xs font-medium text-ink-dim mb-1">Owner <span className="text-ink-faint">(optional)</span></label>
-            <select
-              value={form.owner_id}
-              onChange={e => setForm({ ...form, owner_id: e.target.value })}
-              className="w-full px-3 py-2 bg-surface border border-surface-border rounded-xl text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-500"
-            >
-              <option value="">No owner</option>
-              {teamMembers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="PO Number" value={form.po_number} onChange={v => setForm({ ...form, po_number: v })} optional />
-            <Field label="PO Date" type="date" value={form.po_date} onChange={v => setForm({ ...form, po_date: v })} optional />
-          </div>
-          <Field label="Project Value (₹)" type="number" value={form.project_value} onChange={v => setForm({ ...form, project_value: v })} placeholder="1000000" />
         </div>
+
+        {(isEdit || step === 1) && (
+          <div className="space-y-3">
+            <Field label="Project Name" value={form.project_name} onChange={v => setForm({ ...form, project_name: v })} placeholder="e.g. Installation — Phase 2" />
+
+            <Field label="Architect / PMC" value={form.architect_name} onChange={v => setForm({ ...form, architect_name: v })} placeholder="e.g. ABC Architects" optional />
+
+            {!isEdit && (
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs font-medium text-ink-dim">POCs <span className="text-ink-faint">(optional)</span></p>
+                  <button onClick={addPocRow} className="text-xs text-brand-600 hover:underline">+ Add POC</button>
+                </div>
+                <div className="space-y-3">
+                  {pocs.map((poc, i) => (
+                    <div key={i} className="border border-surface-border rounded-xl p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-ink-faint">POC {i + 1}</p>
+                        <button onClick={() => removePocRow(i)} className="text-xs text-ink-faint hover:text-red-600">Remove</button>
+                      </div>
+                      <Field label="Name" value={poc.poc_name} onChange={v => updatePocRow(i, 'poc_name', v)} />
+                      <Field label="Phone" value={poc.phone_number} onChange={v => updatePocRow(i, 'phone_number', v)} optional />
+                      <Field label="Email" value={poc.email} onChange={v => updatePocRow(i, 'email', v)} optional type="email" />
+                      <label className="flex items-center gap-2 text-xs text-ink-dim">
+                        <input type="checkbox" checked={poc.is_primary} onChange={e => updatePocRow(i, 'is_primary', e.target.checked)} />
+                        Set as primary contact
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-medium text-ink-dim mb-1">Owner <span className="text-ink-faint">(optional)</span></label>
+              <select
+                value={form.owner_id}
+                onChange={e => setForm({ ...form, owner_id: e.target.value })}
+                className="w-full px-3 py-2 bg-surface border border-surface-border rounded-xl text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand-500"
+              >
+                <option value="">No owner</option>
+                {teamMembers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="PO Number" value={form.po_number} onChange={v => setForm({ ...form, po_number: v })} optional />
+              <Field label="PO Date" type="date" value={form.po_date} onChange={v => setForm({ ...form, po_date: v })} optional />
+            </div>
+            <Field label="Project Value (₹)" type="number" value={form.project_value} onChange={v => setForm({ ...form, project_value: v })} placeholder="1000000" />
+          </div>
+        )}
+
+        {!isEdit && step === 2 && (
+          <div>
+            <p className="text-xs text-ink-faint mb-3">Configure payment terms for this PO. Percentages must total 100% of the project value ({formatCurrency(Number(form.project_value))}).</p>
+            <div className="space-y-2">
+              {milestoneRows.map((row, i) => (
+                <div key={i} className="flex gap-2 items-start flex-wrap">
+                  <select
+                    value={row.stage_type}
+                    onChange={e => updateMilestoneRow(i, 'stage_type', e.target.value)}
+                    className={`px-2 py-1.5 bg-surface border border-surface-border rounded-xl text-xs text-ink focus:outline-none focus:ring-2 focus:ring-brand-500 ${row.stage_type === 'custom' ? 'w-28' : 'flex-1'}`}
+                  >
+                    {STAGE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
+                  {row.stage_type === 'custom' && (
+                    <input type="text" placeholder="Stage name" value={row.stage_name} onChange={e => updateMilestoneRow(i, 'stage_name', e.target.value)} className="flex-1 px-2 py-1.5 bg-surface border border-surface-border rounded-xl text-xs text-ink focus:outline-none focus:ring-2 focus:ring-brand-500" />
+                  )}
+                  <input type="number" placeholder="%" value={row.percentage} onChange={e => updateMilestoneRow(i, 'percentage', e.target.value)} className="w-16 px-2 py-1.5 bg-surface border border-surface-border rounded-xl text-xs text-ink focus:outline-none focus:ring-2 focus:ring-brand-500" />
+                  <input type="date" value={row.expected_date} onChange={e => updateMilestoneRow(i, 'expected_date', e.target.value)} className="px-2 py-1.5 bg-surface border border-surface-border rounded-xl text-xs text-ink focus:outline-none focus:ring-2 focus:ring-brand-500 w-32" />
+                  <div className="text-xs text-ink-dim w-20 pt-2 text-right">
+                    {row.percentage ? formatCurrency(Number(form.project_value) * Number(row.percentage) / 100) : '—'}
+                  </div>
+                  <button onClick={() => removeMilestoneRow(i)} disabled={milestoneRows.length === 1} className="text-ink-faint hover:text-red-400 px-1 pt-1.5 disabled:opacity-30">✕</button>
+                </div>
+              ))}
+            </div>
+            <button onClick={addMilestoneRow} className="text-xs text-brand-600 hover:underline mt-2">+ Add stage</button>
+            <p className={`text-xs font-medium mt-3 ${milestoneTotalValid ? 'text-emerald-600' : 'text-amber-600'}`}>
+              Total: {milestoneTotal.toFixed(2)}% {milestoneTotalValid ? '✓' : '(needs to be 100%)'}
+            </p>
+          </div>
+        )}
+
         {error && <p className="text-sm text-red-600 mt-3">{error}</p>}
+
         <div className="flex gap-2 mt-5">
-          <button onClick={onClose} className="flex-1 text-sm text-ink-dim border border-surface-border rounded-xl py-2">Cancel</button>
-          <button onClick={handleSubmit} disabled={loading} className="flex-1 text-sm text-surface bg-brand-500 hover:bg-brand-600 rounded-lg py-2 disabled:opacity-50">
-            {loading ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Project'}
-          </button>
+          {isEdit ? (
+            <>
+              <button onClick={onClose} className="flex-1 text-sm text-ink-dim border border-surface-border rounded-xl py-2">Cancel</button>
+              <button onClick={handleSubmit} disabled={loading} className="flex-1 text-sm text-surface bg-brand-500 hover:bg-brand-600 rounded-lg py-2 disabled:opacity-50">
+                {loading ? 'Saving...' : 'Save Changes'}
+              </button>
+            </>
+          ) : step === 1 ? (
+            <>
+              <button onClick={onClose} className="flex-1 text-sm text-ink-dim border border-surface-border rounded-xl py-2">Cancel</button>
+              <button onClick={handleNext} className="flex-1 text-sm text-surface bg-brand-500 hover:bg-brand-600 rounded-lg py-2">Next</button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => setStep(1)} className="flex-1 text-sm text-ink-dim border border-surface-border rounded-xl py-2">Back</button>
+              <button onClick={handleSubmit} disabled={loading || !milestoneTotalValid} className="flex-1 text-sm text-surface bg-brand-500 hover:bg-brand-600 rounded-lg py-2 disabled:opacity-50">
+                {loading ? 'Creating...' : 'Create Project'}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

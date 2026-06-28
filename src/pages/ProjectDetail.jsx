@@ -20,52 +20,63 @@ const STATUS_STYLE = {
   overdue: 'bg-red-400/10 text-red-300 border-red-400/30',
 }
 
+const INVOICE_STATUS_STYLE = {
+  Pending: 'bg-surface-raised text-ink-dim border-surface-border',
+  Paid: 'bg-emerald-400/10 text-emerald-300 border-emerald-400/30',
+}
+
 export default function ProjectDetail({ projectId, onBack }) {
   const [project, setProject] = useState(null)
-  const [invoices, setInvoices] = useState([])
+  const [milestones, setMilestones] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [showAddInvoice, setShowAddInvoice] = useState(false)
   const [showProjectNotes, setShowProjectNotes] = useState(false)
+  const [showArchitectPocs, setShowArchitectPocs] = useState(false)
+  const [statusSaving, setStatusSaving] = useState(false)
+  const [statusError, setStatusError] = useState('')
 
   useEffect(() => { load() }, [projectId])
 
   async function load() {
     setLoading(true)
-    const [projectData, invoiceData] = await Promise.all([
+    const [projectData, milestoneData] = await Promise.all([
       api.getProject(projectId),
-      api.getInvoices(projectId),
+      api.getMilestones(projectId),
     ])
     if (projectData.error) setError(projectData.error)
     else setProject(projectData)
-    if (!invoiceData.error) setInvoices(invoiceData)
+    if (!milestoneData.error) setMilestones(milestoneData)
     setLoading(false)
   }
 
-  function handleInvoiceCreated(invoice) {
-    setInvoices(prev => [...prev, { ...invoice, payment_milestones: [] }])
-    setShowAddInvoice(false)
+  function handleMilestonesSaved(saved) {
+    setMilestones(saved)
   }
 
-  function handleInvoiceUpdated(updated) {
-    setInvoices(prev => prev.map(i => i.id === updated.id ? { ...i, ...updated } : i))
+  function handleMilestoneUpdated(updated) {
+    setMilestones(prev => prev.map(m => m.id === updated.id ? { ...m, ...updated } : m))
   }
 
-  function handleInvoiceDeleted(id) {
-    setInvoices(prev => prev.filter(i => i.id !== id))
+  function handleInvoicesChanged(milestoneId, invoices) {
+    setMilestones(prev => prev.map(m => m.id === milestoneId ? { ...m, invoices } : m))
   }
 
-  function handleMilestonesChanged(invoiceId, milestones) {
-    setInvoices(prev => prev.map(i => i.id === invoiceId ? { ...i, payment_milestones: milestones } : i))
+  async function handleToggleStatus() {
+    const nextStatus = project.status === 'completed' ? 'active' : 'completed'
+    setStatusSaving(true)
+    setStatusError('')
+    const result = await api.updateProjectStatus(projectId, nextStatus)
+    if (result.error) setStatusError(result.error)
+    else setProject(prev => ({ ...prev, status: result.status }))
+    setStatusSaving(false)
   }
 
   if (loading) return <div className="min-h-screen bg-surface bg-texture"><div className="max-w-3xl mx-auto px-6 py-8"><p className="text-sm text-ink-dim">Loading...</p></div></div>
   if (error && !project) return <div className="min-h-screen bg-surface bg-texture"><div className="max-w-3xl mx-auto px-6 py-8"><p className="text-sm text-red-400">{error}</p></div></div>
 
-  const allMilestones = invoices.flatMap(i => i.payment_milestones || [])
-  const totalCollected = allMilestones.filter(m => m.status === 'paid').reduce((sum, m) => sum + Number(m.amount), 0)
+  const totalCollected = milestones.filter(m => m.status === 'paid').reduce((sum, m) => sum + Number(m.amount), 0)
   const progressPct = project.project_value > 0 ? Math.min(100, (totalCollected / project.project_value) * 100) : 0
-  const totalInvoiced = invoices.reduce((sum, inv) => sum + Number(inv.invoice_value), 0)
+  const editingMilestoneStructure = milestones.length === 0
 
   return (
     <div className="min-h-screen bg-surface bg-texture">
@@ -80,9 +91,16 @@ export default function ProjectDetail({ projectId, onBack }) {
                 PO {project.po_number}
               </span>
             )}
+            <span className={`text-xs px-2 py-0.5 rounded-full border ${project.status === 'completed' ? 'bg-blue-400/10 text-blue-300 border-blue-400/30' : 'bg-emerald-400/10 text-emerald-300 border-emerald-400/30'}`}>
+              {project.status === 'completed' ? 'Completed' : 'Active'}
+            </span>
           </div>
           <p className="text-xs text-ink-dim mt-0.5">
-            {project.clients?.company_name}
+            {project.architects?.company_name ? (
+              <button onClick={() => setShowArchitectPocs(true)} className="hover:text-brand-600 hover:underline">
+                {project.architects.company_name}
+              </button>
+            ) : 'No architect/PMC'}
             {project.po_date && ` · PO Date ${formatDate(project.po_date)}`}
           </p>
         </div>
@@ -97,31 +115,45 @@ export default function ProjectDetail({ projectId, onBack }) {
           </div>
           <div className="flex items-center justify-between mt-2">
             <p className="text-xs text-ink-faint">{progressPct.toFixed(1)}% collected</p>
-            <p className="text-xs text-ink-faint">{formatCurrency(totalInvoiced)} invoiced so far</p>
+            <button
+              onClick={handleToggleStatus}
+              disabled={statusSaving}
+              className="text-xs text-brand-600 hover:underline disabled:opacity-50"
+            >
+              {statusSaving ? 'Saving...' : project.status === 'completed' ? 'Mark as Active' : 'Mark as Completed'}
+            </button>
           </div>
+          {statusError && <p className="text-xs text-red-500 mt-1">{statusError}</p>}
         </div>
 
-        <MilestoneAlerts invoices={invoices} onMilestoneUpdated={load} />
+        <MilestoneAlerts milestones={milestones} onMilestoneUpdated={load} />
 
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-medium text-ink">Invoices</h3>
-          <button onClick={() => setShowAddInvoice(true)} className="text-xs text-brand-600 hover:underline">+ Add Invoice</button>
+          <h3 className="text-sm font-medium text-ink">Payment Milestones</h3>
         </div>
 
-        {invoices.length === 0 ? (
-          <div className="text-center py-10 border border-dashed border-surface-border rounded-card mb-6">
-            <p className="text-sm text-ink-dim">No invoices yet — this PO hasn't shipped anything.</p>
-            <button onClick={() => setShowAddInvoice(true)} className="text-xs text-brand-600 hover:underline mt-1">Add the first invoice</button>
+        {editingMilestoneStructure ? (
+          <div className="mb-6">
+            <MilestoneBuilder
+              projectId={projectId}
+              projectValue={project.project_value}
+              initialMilestones={[]}
+              onSaved={handleMilestonesSaved}
+              onCancel={null}
+            />
           </div>
         ) : (
           <div className="space-y-3 mb-6">
-            {invoices.map(invoice => (
-              <InvoiceCard
-                key={invoice.id}
-                invoice={invoice}
-                onUpdated={handleInvoiceUpdated}
-                onDeleted={handleInvoiceDeleted}
-                onMilestonesChanged={(ms) => handleMilestonesChanged(invoice.id, ms)}
+            {[...milestones].sort((a, b) => a.sort_order - b.sort_order).map(milestone => (
+              <MilestoneCard
+                key={milestone.id}
+                milestone={milestone}
+                projectId={projectId}
+                projectValue={project.project_value}
+                allMilestones={milestones}
+                onMilestoneUpdated={handleMilestoneUpdated}
+                onMilestonesSaved={handleMilestonesSaved}
+                onInvoicesChanged={(invs) => handleInvoicesChanged(milestone.id, invs)}
               />
             ))}
           </div>
@@ -129,11 +161,11 @@ export default function ProjectDetail({ projectId, onBack }) {
 
         <ProjectNotesSection projectId={projectId} expanded={showProjectNotes} onToggle={() => setShowProjectNotes(v => !v)} />
 
-        {showAddInvoice && (
-          <InvoiceModal
-            projectId={projectId}
-            onClose={() => setShowAddInvoice(false)}
-            onCreated={handleInvoiceCreated}
+        {showArchitectPocs && (
+          <ArchitectPocsModal
+            architectId={project.architect_id}
+            architectName={project.architects?.company_name}
+            onClose={() => setShowArchitectPocs(false)}
           />
         )}
       </div>
@@ -141,22 +173,66 @@ export default function ProjectDetail({ projectId, onBack }) {
   )
 }
 
-function MilestoneAlerts({ invoices, onMilestoneUpdated }) {
+function ArchitectPocsModal({ architectId, architectName, onClose }) {
+  const [pocs, setPocs] = useState(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    api.getArchitect(architectId).then(data => {
+      if (data.error) setError(data.error)
+      else setPocs(data.architect_pocs || [])
+    })
+  }, [architectId])
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+      <div className="bg-surface-card border border-surface-border rounded-card p-6 w-full max-w-md shadow-xl">
+        <h3 className="font-serif text-xl text-ink mb-4">{architectName}</h3>
+        <p className="text-xs font-medium text-ink-dim mb-2">POCs</p>
+
+        {error && <p className="text-sm text-red-600">{error}</p>}
+
+        {pocs === null ? (
+          <p className="text-xs text-ink-dim">Loading...</p>
+        ) : pocs.length === 0 ? (
+          <p className="text-xs text-ink-faint">No POCs added for this architect/PMC</p>
+        ) : (
+          <div className="space-y-2">
+            {pocs.map(poc => (
+              <div key={poc.id} className="bg-surface border border-surface-border rounded-xl px-3 py-2">
+                <p className="text-xs font-medium text-ink">
+                  {poc.poc_name} {poc.is_primary && <span className="text-brand-600">(Primary)</span>}
+                </p>
+                {poc.designation && <p className="text-xs text-ink-dim">{poc.designation}</p>}
+                {poc.phone_number && <p className="text-xs text-ink-dim">{poc.phone_number}</p>}
+                {poc.email && <p className="text-xs text-ink-dim">{poc.email}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <button onClick={onClose} className="w-full text-sm text-ink-dim border border-surface-border rounded-xl py-2 mt-5">
+          Close
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function MilestoneAlerts({ milestones, onMilestoneUpdated }) {
   const today = new Date().toISOString().slice(0, 10)
   const [snoozeTarget, setSnoozeTarget] = useState(null)
   const [snoozeDays, setSnoozeDays] = useState(3)
   const [customDays, setCustomDays] = useState('')
   const [snoozing, setSnoozing] = useState(false)
 
-  const alertMilestones = invoices.flatMap(inv =>
-    (inv.payment_milestones || [])
-      .filter(m => m.status !== 'paid')
-      .filter(m => {
-        const diff = Math.round((new Date(m.expected_date) - new Date(today)) / 86400000)
-        return diff <= 3
-      })
-      .map(m => ({ ...m, invoice_number: inv.invoice_number }))
-  ).sort((a, b) => new Date(a.expected_date) - new Date(b.expected_date))
+  const alertMilestones = milestones
+    .filter(m => m.status !== 'paid')
+    .filter(m => {
+      const diff = Math.round((new Date(m.expected_date) - new Date(today)) / 86400000)
+      return diff <= 3
+    })
+    .sort((a, b) => new Date(a.expected_date) - new Date(b.expected_date))
 
   if (alertMilestones.length === 0) return null
 
@@ -192,10 +268,7 @@ function MilestoneAlerts({ invoices, onMilestoneUpdated }) {
           <div key={m.id} className="bg-surface-card border border-surface-border rounded-card p-3">
             <div className="flex items-center justify-between">
               <div className="min-w-0">
-                <p className="text-xs font-medium text-ink">
-                  {m.stage_name}
-                  <span className="text-ink-faint font-normal"> · {m.invoice_number}</span>
-                </p>
+                <p className="text-xs font-medium text-ink">{m.stage_name}</p>
                 <p className="text-xs mt-0.5">
                   <span className={`font-medium ${color}`}>{label}</span>
                   <span className="text-ink-faint"> · {formatCurrency(m.amount)}</span>
@@ -263,47 +336,74 @@ function MilestoneAlerts({ invoices, onMilestoneUpdated }) {
   )
 }
 
-function InvoiceCard({ invoice, onUpdated, onDeleted }) {
+function MilestoneCard({ milestone, projectId, projectValue, allMilestones, onMilestoneUpdated, onMilestonesSaved, onInvoicesChanged }) {
   const [expanded, setExpanded] = useState(false)
-  const [showEdit, setShowEdit] = useState(false)
-  const [showNotes, setShowNotes] = useState(false)
-  const [milestones, setMilestones] = useState(invoice.payment_milestones || [])
-  const [editingMilestones, setEditingMilestones] = useState(milestones.length === 0)
+  const [showAddInvoice, setShowAddInvoice] = useState(false)
+  const [editingStructure, setEditingStructure] = useState(false)
+  const [invoices, setInvoices] = useState(milestone.invoices || [])
+  const [invoicesLoaded, setInvoicesLoaded] = useState(Array.isArray(milestone.invoices))
 
-  const collected = milestones.filter(m => m.status === 'paid').reduce((sum, m) => sum + Number(m.amount), 0)
+  useEffect(() => {
+    if (expanded && !invoicesLoaded) {
+      api.getInvoices(milestone.id).then(data => {
+        if (!data.error) { setInvoices(data); onInvoicesChanged(data) }
+        setInvoicesLoaded(true)
+      })
+    }
+  }, [expanded])
 
-  async function handleDelete(e) {
-    e.stopPropagation()
-    if (!confirm(`Delete invoice "${invoice.invoice_number}"? This removes its milestones too.`)) return
-    await api.deleteInvoice(invoice.id)
-    onDeleted(invoice.id)
-  }
+  const collected = invoices.filter(i => i.payment_status === 'Paid').reduce((sum, i) => sum + Number(i.invoice_value), 0)
+  const remaining = Number(milestone.amount) - collected
 
-  async function handleTogglePaid(milestoneId, currentStatus) {
-    const newStatus = currentStatus === 'paid' ? 'pending' : 'paid'
-    const updated = await api.updateMilestoneStatus(milestoneId, newStatus)
+  async function handleTogglePaid() {
+    const newStatus = milestone.status === 'paid' ? 'pending' : 'paid'
+    const updated = await api.updateMilestoneStatus(milestone.id, newStatus)
     if (updated.error) return
-    setMilestones(prev => prev.map(m => m.id === milestoneId ? updated : m))
+    onMilestoneUpdated(updated)
   }
 
-  function handleMilestonesSaved(saved) {
-    setMilestones(saved)
-    setEditingMilestones(false)
+  function handleInvoiceCreated(invoice) {
+    const next = [...invoices, invoice]
+    setInvoices(next)
+    onInvoicesChanged(next)
+    setShowAddInvoice(false)
+  }
+
+  function handleInvoiceUpdated(updated) {
+    const next = invoices.map(i => i.id === updated.id ? { ...i, ...updated } : i)
+    setInvoices(next)
+    onInvoicesChanged(next)
+  }
+
+  function handleInvoiceDeleted(id) {
+    const next = invoices.filter(i => i.id !== id)
+    setInvoices(next)
+    onInvoicesChanged(next)
   }
 
   return (
     <div className="bg-surface-card border border-surface-border rounded-card overflow-hidden">
       <div className="p-4 cursor-pointer flex items-center justify-between" onClick={() => setExpanded(v => !v)}>
         <div>
-          <p className="text-sm font-medium text-ink">Invoice {invoice.invoice_number}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium text-ink">{milestone.stage_name}</p>
+            <span className={`text-xs px-2 py-0.5 rounded-full border ${STATUS_STYLE[milestone.status]}`}>{milestone.status}</span>
+          </div>
           <p className="text-xs text-ink-dim mt-0.5">
-            {invoice.invoice_date && `${formatDate(invoice.invoice_date)} · `}
-            {formatCurrency(collected)} / {formatCurrency(invoice.invoice_value)} collected
+            {milestone.percentage}% · Due {formatDate(milestone.expected_date)} · {formatCurrency(collected)} / {formatCurrency(milestone.amount)} collected
+            {milestone.actual_payment_date && ` · Paid ${formatDate(milestone.actual_payment_date)}`}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={(e) => { e.stopPropagation(); setShowEdit(true) }} className="text-xs text-ink-dim hover:text-ink border border-surface-border rounded-xl px-2.5 py-1">Edit</button>
-          <button onClick={handleDelete} className="text-xs text-red-600 hover:text-red-700 border border-red-200 rounded-lg px-2.5 py-1">Delete</button>
+          <p className="text-sm font-medium text-ink">{formatCurrency(milestone.amount)}</p>
+          <button
+            onClick={(e) => { e.stopPropagation(); handleTogglePaid() }}
+            className={`text-xs px-3 py-1.5 rounded-lg border transition ${
+              milestone.status === 'paid' ? 'border-surface-border text-ink-dim hover:bg-surface-raised' : 'bg-emerald-500 text-surface border-emerald-500 hover:bg-emerald-600'
+            }`}
+          >
+            {milestone.status === 'paid' ? 'Mark Pending' : 'Mark Paid'}
+          </button>
           <span className="text-ink-faint text-xs">{expanded ? '▲' : '▼'}</span>
         </div>
       </div>
@@ -311,73 +411,174 @@ function InvoiceCard({ invoice, onUpdated, onDeleted }) {
       {expanded && (
         <div className="border-t border-surface-border px-4 py-3 bg-surface/40">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-medium text-ink-dim">Payment Milestones</p>
-            {!editingMilestones && (
-              <button onClick={() => setEditingMilestones(true)} className="text-xs text-brand-600 hover:underline">Edit structure</button>
-            )}
+            <p className="text-xs font-medium text-ink-dim">Invoices</p>
+            <div className="flex items-center gap-3">
+              <button onClick={() => setEditingStructure(true)} className="text-xs text-ink-dim hover:underline">Edit milestone structure</button>
+              <button onClick={() => setShowAddInvoice(true)} className="text-xs text-brand-600 hover:underline">+ Add Invoice</button>
+            </div>
           </div>
-          {editingMilestones ? (
-            <MilestoneBuilder
-              invoiceId={invoice.id}
-              invoiceValue={invoice.invoice_value}
-              initialMilestones={milestones}
-              onSaved={handleMilestonesSaved}
-              onCancel={milestones.length > 0 ? () => setEditingMilestones(false) : null}
-            />
-          ) : (
-            <MilestoneList milestones={milestones} onTogglePaid={handleTogglePaid} />
+
+          {remaining > 0.01 && (
+            <p className="text-xs text-amber-500 mb-2">{formatCurrency(remaining)} remaining uncollected on this milestone</p>
           )}
-          <InvoiceNotesSection invoiceId={invoice.id} expanded={showNotes} onToggle={() => setShowNotes(v => !v)} />
+
+          {!invoicesLoaded ? (
+            <p className="text-xs text-ink-dim">Loading invoices...</p>
+          ) : invoices.length === 0 ? (
+            <div className="text-center py-6 border border-dashed border-surface-border rounded-xl">
+              <p className="text-xs text-red-400 font-medium">No invoices have been raised for this milestone.</p>
+              <p className="text-xs text-ink-faint mt-0.5">Action required: raise an invoice.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {invoices.map(invoice => (
+                <InvoiceRow
+                  key={invoice.id}
+                  invoice={invoice}
+                  onUpdated={handleInvoiceUpdated}
+                  onDeleted={handleInvoiceDeleted}
+                />
+              ))}
+            </div>
+          )}
+
+          {showAddInvoice && (
+            <InvoiceModal
+              milestoneId={milestone.id}
+              onClose={() => setShowAddInvoice(false)}
+              onCreated={handleInvoiceCreated}
+            />
+          )}
+
+          {editingStructure && (
+            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4 overflow-y-auto py-8">
+              <div className="bg-surface-card border border-surface-border rounded-card p-5 w-full max-w-2xl shadow-xl">
+                <h3 className="font-serif text-lg text-ink mb-3">Edit Milestone Structure</h3>
+                <p className="text-xs text-ink-faint mb-3">This rebuilds all milestones for the project. Percentages must total 100% of the project value.</p>
+                <MilestoneBuilder
+                  projectId={projectId}
+                  projectValue={projectValue}
+                  initialMilestones={allMilestones}
+                  onSaved={(saved) => { onMilestonesSaved(saved); setEditingStructure(false) }}
+                  onCancel={() => setEditingStructure(false)}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function InvoiceRow({ invoice, onUpdated, onDeleted }) {
+  const [showEdit, setShowEdit] = useState(false)
+  const [snoozeOpen, setSnoozeOpen] = useState(false)
+  const [snoozeDays, setSnoozeDays] = useState(3)
+  const [customDays, setCustomDays] = useState('')
+  const [snoozing, setSnoozing] = useState(false)
+
+  async function handleDelete() {
+    if (!confirm(`Delete invoice "${invoice.invoice_number}"?`)) return
+    await api.deleteInvoice(invoice.id)
+    onDeleted(invoice.id)
+  }
+
+  async function handleToggleStatus() {
+    const newStatus = invoice.payment_status === 'Paid' ? 'Pending' : 'Paid'
+    const updated = await api.updateInvoiceStatus(invoice.id, newStatus)
+    if (!updated.error) onUpdated(updated)
+  }
+
+  async function handleSnooze() {
+    const days = customDays ? Number(customDays) : snoozeDays
+    if (!days || days < 1) return
+    setSnoozing(true)
+    const updated = await api.snoozeInvoice(invoice.id, days)
+    if (!updated.error) onUpdated(updated)
+    setSnoozeOpen(false)
+    setCustomDays('')
+    setSnoozing(false)
+  }
+
+  async function handleUnsnooze() {
+    const updated = await api.unsnoozeInvoice(invoice.id)
+    if (!updated.error) onUpdated(updated)
+  }
+
+  return (
+    <div className="bg-surface border border-surface-border rounded-xl p-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium text-ink">{invoice.invoice_number}</p>
+            <span className={`text-xs px-2 py-0.5 rounded-full border ${INVOICE_STATUS_STYLE[invoice.payment_status]}`}>{invoice.payment_status}</span>
+          </div>
+          <p className="text-xs text-ink-dim mt-0.5">
+            {invoice.invoice_date && `${formatDate(invoice.invoice_date)} · `}
+            {invoice.due_date && `Due ${formatDate(invoice.due_date)}`}
+            {invoice.snoozed_until && <span className="text-amber-500"> · Snoozed until {formatDate(invoice.snoozed_until)}</span>}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-medium text-ink">{formatCurrency(invoice.invoice_value)}</p>
+          <button onClick={() => setShowEdit(true)} className="text-xs text-ink-dim hover:text-ink border border-surface-border rounded-xl px-2.5 py-1">Edit</button>
+          {invoice.payment_status !== 'Paid' && (
+            invoice.snoozed_until ? (
+              <button onClick={handleUnsnooze} className="text-xs px-2 py-1 rounded-lg border border-amber-400/30 text-amber-400 hover:bg-amber-400/10">Unsnooze</button>
+            ) : (
+              <button onClick={() => setSnoozeOpen(v => !v)} className="text-xs px-2 py-1 rounded-lg border border-surface-border text-ink-dim hover:text-ink">Snooze</button>
+            )
+          )}
+          <button
+            onClick={handleToggleStatus}
+            className={`text-xs px-3 py-1.5 rounded-lg border transition ${
+              invoice.payment_status === 'Paid' ? 'border-surface-border text-ink-dim hover:bg-surface-raised' : 'bg-emerald-500 text-surface border-emerald-500 hover:bg-emerald-600'
+            }`}
+          >
+            {invoice.payment_status === 'Paid' ? 'Mark Pending' : 'Mark Paid'}
+          </button>
+          <button onClick={handleDelete} className="text-xs text-red-600 hover:text-red-700 border border-red-200 rounded-lg px-2.5 py-1">Delete</button>
+        </div>
+      </div>
+
+      {snoozeOpen && (
+        <div className="mt-2 pt-2 border-t border-surface-border flex items-center gap-2 flex-wrap">
+          <p className="text-xs text-ink-faint">Snooze for</p>
+          {[1, 3, 5, 7].map(d => (
+            <button
+              key={d}
+              onClick={() => { setSnoozeDays(d); setCustomDays('') }}
+              className={`text-xs px-2 py-1 rounded-lg border transition ${
+                snoozeDays === d && !customDays ? 'border-brand-500 text-brand-500' : 'border-surface-border text-ink-dim hover:border-ink-dim'
+              }`}
+            >
+              {d}d
+            </button>
+          ))}
+          <input
+            type="number" min="1" max="30" value={customDays} onChange={e => setCustomDays(e.target.value)}
+            className="w-16 text-xs px-2 py-1 rounded-lg border border-surface-border text-ink bg-surface focus:outline-none focus:ring-1 focus:ring-brand-500"
+          />
+          <button onClick={handleSnooze} disabled={snoozing} className="text-xs px-3 py-1 rounded-lg bg-ink text-surface hover:bg-ink/80 disabled:opacity-50">
+            {snoozing ? 'Saving...' : 'Confirm'}
+          </button>
+          <button onClick={() => setSnoozeOpen(false)} className="text-xs text-ink-faint hover:text-ink">Cancel</button>
         </div>
       )}
 
       {showEdit && (
-        <div onClick={e => e.stopPropagation()}>
-          <InvoiceModal
-            invoice={invoice}
-            onClose={() => setShowEdit(false)}
-            onUpdated={(updated) => { onUpdated(updated); setShowEdit(false) }}
-          />
-        </div>
+        <InvoiceModal
+          invoice={invoice}
+          onClose={() => setShowEdit(false)}
+          onUpdated={(updated) => { onUpdated(updated); setShowEdit(false) }}
+        />
       )}
     </div>
   )
 }
 
-function MilestoneList({ milestones, onTogglePaid }) {
-  const sorted = [...milestones].sort((a, b) => a.sort_order - b.sort_order)
-  return (
-    <div className="space-y-2">
-      {sorted.map(m => (
-        <div key={m.id} className="bg-surface border border-surface-border rounded-xl p-3 flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-medium text-ink">{m.stage_name}</p>
-              <span className={`text-xs px-2 py-0.5 rounded-full border ${STATUS_STYLE[m.status]}`}>{m.status}</span>
-            </div>
-            <p className="text-xs text-ink-dim mt-0.5">
-              {m.percentage}% · Due {formatDate(m.expected_date)}
-              {m.actual_payment_date && ` · Paid ${formatDate(m.actual_payment_date)}`}
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <p className="text-sm font-medium text-ink">{formatCurrency(m.amount)}</p>
-            <button
-              onClick={() => onTogglePaid(m.id, m.status)}
-              className={`text-xs px-3 py-1.5 rounded-lg border transition ${
-                m.status === 'paid' ? 'border-surface-border text-ink-dim hover:bg-surface-raised' : 'bg-emerald-500 text-surface border-emerald-500 hover:bg-emerald-600'
-              }`}
-            >
-              {m.status === 'paid' ? 'Mark Pending' : 'Mark Paid'}
-            </button>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function MilestoneBuilder({ invoiceId, invoiceValue, initialMilestones, onSaved, onCancel }) {
+function MilestoneBuilder({ projectId, projectValue, initialMilestones, onSaved, onCancel }) {
   const [rows, setRows] = useState(
     initialMilestones.length > 0
       ? initialMilestones.map(m => ({
@@ -420,7 +621,7 @@ function MilestoneBuilder({ invoiceId, invoiceValue, initialMilestones, onSaved,
       percentage: Number(r.percentage),
       expected_date: r.expected_date,
     }))
-    const result = await api.saveMilestones(invoiceId, payload)
+    const result = await api.saveMilestones(projectId, payload)
     if (result.error) { setError(result.error); setSaving(false); return }
     onSaved(result)
     setSaving(false)
@@ -444,7 +645,7 @@ function MilestoneBuilder({ invoiceId, invoiceValue, initialMilestones, onSaved,
             <input type="number" placeholder="%" value={row.percentage} onChange={e => updateRow(i, 'percentage', e.target.value)} className="w-16 px-2 py-1.5 border border-surface-border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-brand-500" />
             <input type="date" value={row.expected_date} onChange={e => updateRow(i, 'expected_date', e.target.value)} className="px-2 py-1.5 border border-surface-border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-brand-500 w-32" />
             <div className="text-xs text-ink-dim w-20 pt-2 text-right">
-              {row.percentage ? formatCurrency(invoiceValue * Number(row.percentage) / 100) : '—'}
+              {row.percentage ? formatCurrency(projectValue * Number(row.percentage) / 100) : '—'}
             </div>
             <button onClick={() => removeRow(i)} disabled={rows.length === 1} className="text-ink-faint hover:text-red-400 px-1 pt-1.5 disabled:opacity-30">✕</button>
           </div>
@@ -467,27 +668,16 @@ function MilestoneBuilder({ invoiceId, invoiceValue, initialMilestones, onSaved,
   )
 }
 
-function InvoiceModal({ projectId, invoice, onClose, onCreated, onUpdated }) {
+function InvoiceModal({ milestoneId, invoice, onClose, onCreated, onUpdated }) {
   const isEdit = !!invoice
   const [form, setForm] = useState({
     invoice_number: invoice?.invoice_number || '',
     invoice_date: invoice?.invoice_date || '',
     invoice_value: invoice?.invoice_value || '',
+    due_date: invoice?.due_date || '',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [remaining, setRemaining] = useState(null)
-
-  useEffect(() => {
-    api.getRemainingInvoiceValue(projectId).then(data => {
-      if (!data.error) {
-        const adjusted = isEdit ? data.remaining + Number(invoice.invoice_value) : data.remaining
-        setRemaining(adjusted)
-      }
-    })
-  }, [])
-
-  const overBudget = remaining !== null && form.invoice_value && Number(form.invoice_value) > remaining + 0.01
 
   async function handleSubmit() {
     if (!form.invoice_number.trim()) return setError('Invoice number is required')
@@ -495,7 +685,7 @@ function InvoiceModal({ projectId, invoice, onClose, onCreated, onUpdated }) {
     setLoading(true)
     setError('')
     const payload = { ...form, invoice_value: Number(form.invoice_value) }
-    const result = isEdit ? await api.updateInvoice(invoice.id, payload) : await api.createInvoice(projectId, payload)
+    const result = isEdit ? await api.updateInvoice(invoice.id, payload) : await api.createInvoice(milestoneId, payload)
     if (result.error) { setError(result.error); setLoading(false); return }
     isEdit ? onUpdated(result) : onCreated(result)
     setLoading(false)
@@ -504,22 +694,17 @@ function InvoiceModal({ projectId, invoice, onClose, onCreated, onUpdated }) {
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
       <div className="bg-surface-card border border-surface-border rounded-card p-6 w-full max-w-sm shadow-xl">
-        <h3 className="font-serif text-xl text-ink mb-1">{isEdit ? 'Edit Invoice' : 'Add Invoice'}</h3>
-        {remaining !== null && (
-          <p className={`text-xs mb-4 ${overBudget ? 'text-red-400 font-medium' : 'text-ink-dim'}`}>
-            {formatCurrency(remaining)} left to invoice on this PO
-          </p>
-        )}
+        <h3 className="font-serif text-xl text-ink mb-4">{isEdit ? 'Edit Invoice' : 'Add Invoice'}</h3>
         <div className="space-y-3">
           <Field label="Invoice Number" value={form.invoice_number} onChange={v => setForm({ ...form, invoice_number: v })} placeholder="e.g. INV-2026-014" />
           <Field label="Invoice Date" type="date" value={form.invoice_date} onChange={v => setForm({ ...form, invoice_date: v })} optional />
+          <Field label="Due Date" type="date" value={form.due_date} onChange={v => setForm({ ...form, due_date: v })} optional />
           <Field label="Invoice Value (₹)" type="number" value={form.invoice_value} onChange={v => setForm({ ...form, invoice_value: v })} placeholder="3000000" />
         </div>
-        {overBudget && <p className="text-xs text-red-600 mt-2">Exceeds remaining PO value by {formatCurrency(Number(form.invoice_value) - remaining)}</p>}
         {error && <p className="text-sm text-red-600 mt-3">{error}</p>}
         <div className="flex gap-2 mt-5">
           <button onClick={onClose} className="flex-1 text-sm text-ink-dim border border-surface-border rounded-xl py-2">Cancel</button>
-          <button onClick={handleSubmit} disabled={loading || overBudget} className="flex-1 text-sm text-surface bg-brand-500 hover:bg-brand-600 rounded-lg py-2 disabled:opacity-50">
+          <button onClick={handleSubmit} disabled={loading} className="flex-1 text-sm text-surface bg-brand-500 hover:bg-brand-600 rounded-lg py-2 disabled:opacity-50">
             {loading ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Invoice'}
           </button>
         </div>
@@ -568,58 +753,6 @@ function ProjectNotesSection({ projectId, expanded, onToggle }) {
             <div className="space-y-2">
               {notes.map(n => (
                 <div key={n.id} className="text-xs border-l-2 border-surface-border pl-3">
-                  <p className="text-ink">{n.note}</p>
-                  <p className="text-ink-faint mt-0.5">{n.user_profiles?.full_name} · {formatDateTime(n.created_at)}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function InvoiceNotesSection({ invoiceId, expanded, onToggle }) {
-  const [notes, setNotes] = useState([])
-  const [loaded, setLoaded] = useState(false)
-  const [text, setText] = useState('')
-  const [posting, setPosting] = useState(false)
-
-  useEffect(() => {
-    if (expanded && !loaded) {
-      api.getInvoiceNotes(invoiceId).then(data => {
-        if (!data.error) setNotes(data)
-        setLoaded(true)
-      })
-    }
-  }, [expanded])
-
-  async function handleAdd() {
-    if (!text.trim()) return
-    setPosting(true)
-    const note = await api.addInvoiceNote(invoiceId, text)
-    if (!note.error) { setNotes(prev => [note, ...prev]); setText('') }
-    setPosting(false)
-  }
-
-  return (
-    <div className="mt-3 pt-3 border-t border-surface-border">
-      <button onClick={onToggle} className="text-xs text-ink-dim hover:text-ink flex items-center gap-1">
-        📝 Notes {notes.length > 0 && !expanded && `(${notes.length})`} {expanded ? '▲' : '▼'}
-      </button>
-      {expanded && (
-        <div className="mt-2 bg-surface border border-surface-border rounded-xl p-3">
-          <div className="flex gap-2 mb-2">
-            <input type="text" value={text} onChange={e => setText(e.target.value)} placeholder="Add a note about this invoice..." className="flex-1 px-2 py-1.5 border border-surface-border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-brand-500" onKeyDown={e => e.key === 'Enter' && handleAdd()} />
-            <button onClick={handleAdd} disabled={posting} className="text-xs text-surface bg-brand-500 hover:bg-brand-600 rounded-lg px-3 disabled:opacity-50">Add</button>
-          </div>
-          {notes.length === 0 ? (
-            <p className="text-xs text-ink-faint">No notes yet.</p>
-          ) : (
-            <div className="space-y-1.5">
-              {notes.map(n => (
-                <div key={n.id} className="text-xs border-l-2 border-surface-border pl-2">
                   <p className="text-ink">{n.note}</p>
                   <p className="text-ink-faint mt-0.5">{n.user_profiles?.full_name} · {formatDateTime(n.created_at)}</p>
                 </div>
