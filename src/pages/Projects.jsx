@@ -303,6 +303,9 @@ function ProjectModal({ project, teamMembers = [], onClose, onCreated, onUpdated
 
   function handleNext() {
     if (!form.project_name.trim()) return setError('Project name is required')
+    if (!form.owner_id) return setError('Owner is required')
+    if (!form.po_number.trim()) return setError('PO Number is required')
+    if (!form.po_date) return setError('PO Date is required')
     if (!form.project_value || Number(form.project_value) <= 0) return setError('Project value must be greater than 0')
     setError('')
     setStep(2)
@@ -311,6 +314,9 @@ function ProjectModal({ project, teamMembers = [], onClose, onCreated, onUpdated
   async function handleSubmit() {
     if (isEdit) {
       if (!form.project_name.trim()) return setError('Project name is required')
+      if (!form.owner_id) return setError('Owner is required')
+      if (!form.po_number.trim()) return setError('PO Number is required')
+      if (!form.po_date) return setError('PO Date is required')
       if (!form.project_value || Number(form.project_value) <= 0) return setError('Project value must be greater than 0')
       setLoading(true)
       setError('')
@@ -401,7 +407,7 @@ function ProjectModal({ project, teamMembers = [], onClose, onCreated, onUpdated
             )}
 
             <div>
-              <label className="block text-xs font-medium text-ink-dim mb-1">Owner <span className="text-ink-faint">(optional)</span></label>
+              <label className="block text-xs font-medium text-ink-dim mb-1">Owner</label>
               <select
                 value={form.owner_id}
                 onChange={e => setForm({ ...form, owner_id: e.target.value })}
@@ -413,8 +419,8 @@ function ProjectModal({ project, teamMembers = [], onClose, onCreated, onUpdated
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <Field label="PO Number" value={form.po_number} onChange={v => setForm({ ...form, po_number: v })} optional />
-              <Field label="PO Date" type="date" value={form.po_date} onChange={v => setForm({ ...form, po_date: v })} optional />
+              <Field label="PO Number" value={form.po_number} onChange={v => setForm({ ...form, po_number: v })} />
+              <Field label="PO Date" type="date" value={form.po_date} onChange={v => setForm({ ...form, po_date: v })} />
             </div>
             <Field label="Project Value (₹)" type="number" value={form.project_value} onChange={v => setForm({ ...form, project_value: v })} placeholder="1000000" />
           </div>
